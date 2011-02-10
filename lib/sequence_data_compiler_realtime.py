@@ -73,20 +73,20 @@ class SequenceCompiler:
     def calc_line_xpos(self, threadid, pos = "l"):
         tdic = self.threads[threadid]
         if pos == "l":
-            pos_offset = 0
+            pos_offset = self.EXECUTIONBAR_WIDTH
         elif pos == "c":
             pos_offset = self.EXECUTIONBAR_WIDTH / 2
         elif pos == "r":
-            pos_offset = self.EXECUTIONBAR_WIDTH
+            pos_offset = 0
         else:
             pos_offset = 0
 
-        return tdic["xoffset"] + len(tdic["stack_box"]) * self.EXECUTIONBAR_WIDTH + pos_offset
+        return tdic["xoffset"] + len(tdic["stack_box"]) * self.EXECUTIONBAR_WIDTH - pos_offset
         
 
     def put_call(self, time, threadid, funcname):
         tdic = self.threads[threadid]
-        lb = self.calc_line_xpos(threadid)
+        lb = self.calc_line_xpos(threadid, "r")
         
         bar = self.fig.put(
             "box",
@@ -180,9 +180,12 @@ class SequenceCompiler:
             "start_pos": self.current_ybase,
         }
         # self.put_mark(time, threadid, comm_id)
-        self.current_ybase += 0
+        self.current_ybase += 5
 
     def put_recv(self, time, threadid, comm_id):
+        if comm_id not in self.open_comm:
+            print "Error: reverse order communication not supported yet."
+            return
         self.put_comm_line(
             self.open_comm[comm_id]["start_threadid"],
             self.open_comm[comm_id]["start_pos"],
@@ -195,13 +198,9 @@ class SequenceCompiler:
         self.current_ybase += 0
 
     def put_comm_line(self, start_tid, start_pos, end_tid, end_pos):
-        x0 = (self.threads[start_tid]["xoffset"]
-             + len(self.threads[start_tid]["stack_box"])*self.EXECUTIONBAR_WIDTH
-             + self.EXECUTIONBAR_WIDTH/2)
+        x0 = self.calc_line_xpos(start_tid, "c")
         y0 = start_pos
-        x1 = (self.threads[end_tid]["xoffset"]
-             + len(self.threads[end_tid]["stack_box"])*self.EXECUTIONBAR_WIDTH
-             + self.EXECUTIONBAR_WIDTH/2)
+        x1 = self.calc_line_xpos(end_tid, "c")
         y1 = end_pos
         self.fig.put(
             "line",
@@ -219,7 +218,7 @@ class SequenceCompiler:
             return
         if cmd[0] in ('C','R','P'):
             self.check_thread(cmd[1])
-            
+
             if cmd[0] == 'C':
                 self.put_call(int(cmd[2]), cmd[1], cmd[3])
             if cmd[0] == 'R':
@@ -237,9 +236,11 @@ class SequenceCompiler:
                 self.put_recv(int(cmd[2]), cmd[1], cmd[3])
 
         elif cmd[0] == 'THREADNAME':
+            self.check_thread(cmd[1])
             self.change_threadname(cmd[1], cmd[2])
 
         elif cmd[0] == 'E':
+            self.check_thread(cmd[1])
             self.put_event_mark(int(cmd[2]), cmd[1], cmd[3])
 
         elif cmd[0] == '#':
