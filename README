@@ -1,6 +1,9 @@
 
 VizEXEC
 
+本ファイルは簡単な説明のみです。
+詳細はVizEXECホームページへ: http://sunagae.net/software/vizexec
+
 1. 概要
   スレッドで並列実行されるプログラムの実行履歴をシーケンス図っぽいもので
 　自動的に視覚化するツール。実行するプログラムにマーカーの書き込むことで、
@@ -34,16 +37,21 @@ VizEXEC
   この場合、読み込まれた行から随時視覚化される。
   
 4.1. プログラムからログを出力させるには
-  log_format.txt, sample.logを参考に、本ツール対応形式でログを出力させることで
-  任意のプログラムの実行履歴を視覚化できる。
-  C++用の参考実装ログライターがlogwriter/cppにある。多言語向けはまだ実装中。
+  VizEXECホームページにある資料やsample.logを参考に、本ツール対応形式で
+  ログを出力させることで任意のプログラムの実行履歴を視覚化できる。
+
+4.2. C++用ログライター
+  C++用の参考実装ログライターがlogwriter/cppにある。
+  make.shを実行することでコンパイルできる。
+
+4.3. 他言語用ログライター
+  実装中。
 
 5. ライセンス
   本ソフトウェアはMIT Licenseです。
   MIT Licence: http://www.opensource.org/licenses/mit-license.php
 
-
-6. 連絡先
+6. 作者連絡先
   メール: Sunagae <sunagae@sunagae.net>
   VizEXECホームページ: http://sunagae.net/software/vizexec
 
