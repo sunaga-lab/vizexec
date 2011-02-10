@@ -169,7 +169,7 @@ class VizexecGUI:
         self.open_append(filename)
 
     def open_append(self, filename):
-        read_thread = ReadThread(filename, self.compiler)
+        read_thread = ReadThread(filename, self)
         read_thread.start()
 
 
@@ -204,11 +204,13 @@ class VizexecGUI:
         self.AboutDialog.run()
         self.AboutDialog.hide()
 
+
 class ReadThread(threading.Thread):
-    def __init__(self, fn, compiler):
+    def __init__(self, fn, window):
         threading.Thread.__init__(self)
         self.fn = fn
-        self.compiler = compiler
+        self.window = window
+        self.compiler = window.compiler
         self.setDaemon(True)
 
     def run(self):
@@ -217,19 +219,18 @@ class ReadThread(threading.Thread):
             line = file.readline()
             if not line:
                 break
-            gWnd.figure_lock.acquire()
+            self.window.figure_lock.acquire()
             self.compiler.add_data_line(line)
             self.compiler.ybase_increased()
-            gWnd.updated = True
-            gWnd.figure_lock.release()
+            self.window.updated = True
+            self.window.figure_lock.release()
         print "ReadThread: exit for ", self.fn
 
 
-gWnd = None
 if __name__ == "__main__":
-    gWnd = VizexecGUI()
-    if len(sys.argv) > 2:
-        gWnd.open_new(sys.argv[1])
+    mainwindow = VizexecGUI()
+    if len(sys.argv) >= 2:
+        mainwindow.open_new(sys.argv[1])
     gtk.main()
 
 

@@ -30,9 +30,9 @@ class SequenceCompiler:
         self.open_comm = {}
         self.thread_name_map = {}
         self.threads = {}
-        self.lifeline_x_offset = 100
-        self.ybase = 50
-        self.current_ybase = 50
+        self.lifeline_x_offset = 30
+        self.ybase = 10
+        self.current_ybase = self.ybase
 
         
     def new_comm_serial_id(self):
@@ -179,7 +179,7 @@ class SequenceCompiler:
             "start_threadid": threadid,
             "start_pos": self.current_ybase,
         }
-        self.put_mark(time, threadid, comm_id)
+        # self.put_mark(time, threadid, comm_id)
         self.current_ybase += 0
 
     def put_recv(self, time, threadid, comm_id):

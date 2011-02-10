@@ -3,6 +3,7 @@
   <requires lib="gtk+" version="2.16"/>
   <!-- interface-naming-policy project-wide -->
   <object class="GtkWindow" id="window">
+    <property name="title" translatable="yes">VizEXEC</property>
     <property name="default_width">800</property>
     <property name="default_height">600</property>
     <signal name="hide" handler="window_hide"/>
@@ -101,8 +102,9 @@
   </object>
   <object class="GtkAboutDialog" id="AboutDialog">
     <property name="border_width">5</property>
+    <property name="type">popup</property>
     <property name="type_hint">normal</property>
-    <property name="program_name">VizExec</property>
+    <property name="program_name">VizEXEC</property>
     <property name="version">0.1</property>
     <property name="copyright" translatable="yes">Copyright &#xA9; 2011 Sunagae</property>
     <property name="comments" translatable="yes">&#x4E26;&#x5217;&#x5B9F;&#x884C;&#x8996;&#x899A;&#x5316;&#x30C4;&#x30FC;&#x30EB;</property>
