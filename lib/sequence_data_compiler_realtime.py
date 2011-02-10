@@ -142,7 +142,7 @@ class SequenceCompiler:
         y1 = y + sz
         
         common_params = {
-            "linecolor": "#0000FF",
+            "linecolor": "#FF0000",
             "linewidth": 1.0,
             "dash": [],
         }

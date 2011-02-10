@@ -225,6 +225,10 @@ void EnableLogWriter()
 	cout << "VizEXEC: Start" << endl;
 }
 
+bool IsLogWriterEnabled()
+{
+    return gEnabled;
+}
 
 void PutLogData(LogData *buf)
 {
@@ -346,7 +350,7 @@ void LogWriteThreadMain()
             if(buf->LogFlag & LF_PTRDATA)
                 strm << " " << buf->PtrData1 << "_" << buf->PtrData2;
             if(buf->LogFlag & LF_STRDATA)
-                strm << " " << buf->StrData1;
+                strm << " \"" << buf->StrData1 << "\"";
             strm << endl;
             continue;
         }

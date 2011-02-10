@@ -1,4 +1,13 @@
+/**
+ * @file  Sample.cpp
+ * @brief VizexecLogWriterの使用サンプル
+ *
+ * @author Sunagae
+ * @date 2011-02-11
+ */
 
+// VizexecLogWriterを有効化するためにはENABLE_VIZEXECマクロを定義する。
+// これを定義しないと、VZE_***マクロはすべて無視される
 #define ENABLE_VIZEXEC
 
 #include <string>
@@ -19,7 +28,6 @@ thread gProcessThread;
 //------------------------------------------------------------------------------
 // Functions for ProcessThread
 //------------------------------------------------------------------------------
-
 const char *WaitForMessage()
 {
     VZE_FUNC
