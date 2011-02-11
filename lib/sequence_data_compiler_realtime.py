@@ -3,22 +3,6 @@
 import figure_data
 import shlex
 
-sample_data = {
-    "thread-1": [
-        (100, "call", "MethodA"),
-        (150, "call", "MethodB"),
-        (200, "ret"),
-        (300, "ret"),
-    ],
-    "thread-2": [
-        (120, "call", "MethodA"),
-        (150, "call", "MethodB"),
-        (210, "ret"),
-        (300, "ret"),
-    ]
-}
-
-
 
 class SequenceCompiler:
     
@@ -216,30 +200,30 @@ class SequenceCompiler:
         cmd = shlex.split(line.strip())
         if not cmd:
             return
-        if cmd[0] in ('C','R','P'):
+        if cmd[0] in ('CAL','RET','PHS'):
             self.check_thread(cmd[1])
 
-            if cmd[0] == 'C':
+            if cmd[0] == 'CAL':
                 self.put_call(int(cmd[2]), cmd[1], cmd[3])
-            if cmd[0] == 'R':
+            if cmd[0] == 'RET':
                 self.put_return(int(cmd[2]), cmd[1])
-            if cmd[0] == 'P':
+            if cmd[0] == 'PHS':
                 self.put_phase(int(cmd[2]), cmd[1], cmd[3])
 
-        elif cmd[0] in ('S','V','B'):
+        elif cmd[0] in ('SND','RCV','BRD'):
             self.check_thread(cmd[1])
-            if cmd[0] == 'S':
+            if cmd[0] == 'SND':
                 self.put_send(int(cmd[2]), cmd[1], cmd[3])
-            if cmd[0] == 'B':
+            if cmd[0] == 'BRD':
                 self.put_sendbroad(int(cmd[2]), cmd[1], cmd[3])
-            if cmd[0] == 'V':
+            if cmd[0] == 'RCV':
                 self.put_recv(int(cmd[2]), cmd[1], cmd[3])
 
-        elif cmd[0] == 'THREADNAME':
+        elif cmd[0] == 'TNM':
             self.check_thread(cmd[1])
             self.change_threadname(cmd[1], cmd[2])
 
-        elif cmd[0] == 'E':
+        elif cmd[0] == 'EVT':
             self.check_thread(cmd[1])
             self.put_event_mark(int(cmd[2]), cmd[1], cmd[3])
 

@@ -1,6 +1,20 @@
-
+/**
+ * @file  VizexecLogWriter.hpp
+ * @brief VizEXEC用ログライター
+ *
+ * @author Sunagae
+ * @date 2011-02-11
+ * 
+ * VizEXECで視覚化するためのログライター
+ * 視覚化したい部分に適当なマーカーマクロを書き込むことで、その部分の視覚化をすることができる。
+ * 詳細は各マクロの説明を。
+ * 
+ * ログの書き込み処理はスレッド化されているので、性能に対するオーバーヘッドはそんなにないはず。。。
+ * 
+ */
 #include <string>
 #include <boost/thread.hpp>
+#include <boost/thread/condition.hpp>
 #include <boost/lexical_cast.hpp>
 #include <fstream>
 #include <iostream>
@@ -11,7 +25,7 @@
 using namespace std;
 using namespace boost;
 
-
+/// ログバッファのサイズ、バッファがいっぱいになるとスレッドはブロックする
 #define LOG_BUFFER_MAX 1000
 
 
@@ -240,7 +254,7 @@ func_tracer::func_tracer(const char *func)
 {
 	ONLY_IF_LOGWRITER_ENABLED
 	LogData *buf = NewLogBuffer();
-    buf->LogType = "C";
+    buf->LogType = "CAL";
 	buf->LogFlag = LF_FUNCNAME;
 	buf->FuncName = func_name_;
 	PutLogData(buf);
@@ -250,7 +264,7 @@ func_tracer::~func_tracer()
 {
 	ONLY_IF_LOGWRITER_ENABLED
 	LogData *buf = NewLogBuffer();
-    buf->LogType = "R";
+    buf->LogType = "RET";
 	buf->LogFlag = LF_FUNCNAME;
 	buf->FuncName = func_name_;
 	PutLogData(buf);
@@ -260,7 +274,7 @@ void WritePhase(const char *func)
 {
 	ONLY_IF_LOGWRITER_ENABLED
 	LogData *buf = NewLogBuffer();
-    buf->LogType = "P";
+    buf->LogType = "PHS";
 	buf->LogFlag = LF_FUNCNAME;
 	buf->FuncName = func;
 	PutLogData(buf);
@@ -271,7 +285,7 @@ void WriteRecv(const void *p1, const void *p2)
 {
 	ONLY_IF_LOGWRITER_ENABLED
 	LogData *buf = NewLogBuffer();
-    buf->LogType = "V";
+    buf->LogType = "RCV";
 	buf->LogFlag = LF_PTRDATA;
 	buf->PtrData1 = p1;
 	buf->PtrData2 = p2;
@@ -282,7 +296,7 @@ void WriteSend(const void *p1, const void *p2)
 {
 	ONLY_IF_LOGWRITER_ENABLED
 	LogData *buf = NewLogBuffer();
-    buf->LogType = "S";
+    buf->LogType = "SND";
 	buf->LogFlag = LF_PTRDATA;
 	buf->PtrData1 = p1;
 	buf->PtrData2 = p2;
@@ -304,7 +318,7 @@ void SetCurrentThreadName(const string &name)
 {
 	ONLY_IF_LOGWRITER_ENABLED
 	LogData *buf = NewLogBuffer();
-    buf->LogType = "THREADNAME";
+    buf->LogType = "TNM";
 	buf->LogFlag = LF_STRDATA | LF_NOTIME;
 	buf->StrData1 = name;
 	PutLogData(buf);
@@ -314,7 +328,7 @@ void WriteEvent(const string &eventstr)
 {
 	ONLY_IF_LOGWRITER_ENABLED
 	LogData *buf = NewLogBuffer();
-    buf->LogType = "E";
+    buf->LogType = "EVT";
 	buf->LogFlag = LF_STRDATA;
 	buf->StrData1 = eventstr;
 	PutLogData(buf);

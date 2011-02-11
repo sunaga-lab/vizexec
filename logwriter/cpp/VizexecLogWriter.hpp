@@ -1,9 +1,16 @@
 /**
- * @file  VizexecLogWriter.cpp
+ * @file  VizexecLogWriter.hpp
  * @brief VizEXEC用ログライター
  *
  * @author Sunagae
  * @date 2011-02-11
+ * 
+ * VizEXECで視覚化するためのログライター
+ * 視覚化したい部分に適当なマーカーマクロを書き込むことで、その部分の視覚化をすることができる。
+ * 詳細は各マクロの説明を。
+ * 
+ * ログの書き込み処理はスレッド化されているので、性能に対するオーバーヘッドはそんなにないはず。。。
+ * 
  */
 
 #ifndef VIZEXEC_LOGWRITER_HPP_

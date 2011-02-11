@@ -1,27 +1,27 @@
 # Start VZP
-C 0 1 main
-THREADNAME 0 MainThread
-C 0 2 CreateThread
-C 1 2 ThreadMain
-THREADNAME 1 ProcessThread
-R 0 3 CreateThread
-C 1 4 WaitForMessage
-C 0 2 SendMessage
-S 0 0 message1
-R 0 0 SendMessage
-C 0 0 WaitForAck
-V 1 0 message1
-R 1 0 WaitForMessage
-C 1 0 ProcessMessage
-E 1 0 MessageProcessEvent
-R 1 0 ProcessMessage
-C 1 2 SendMessage
-S 1 0 message2
-R 1 2 SendMessage
-V 0 0 message2
-R 0 4 WaitForAck
-C 0 4 ShowResult
-C 1 0 WaitForMessage
-E 0 0 DrawEvent
-R 0 4 ShowResult
+CAL 0 1 main
+TNM 0 MainThread
+CAL 0 2 CreateThread
+CAL 1 2 ThreadMain
+TNM 1 ProcessThread
+RET 0 3 CreateThread
+CAL 1 4 WaitForMessage
+CAL 0 2 SendMessage
+SND 0 0 message1
+RET 0 0 SendMessage
+CAL 0 0 WaitForAck
+RCV 1 0 message1
+RET 1 0 WaitForMessage
+CAL 1 0 ProcessMessage
+EVT 1 0 MessageProcessEvent
+RET 1 0 ProcessMessage
+CAL 1 2 SendMessage
+SND 1 0 message2
+RET 1 2 SendMessage
+RCV 0 0 message2
+RET 0 4 WaitForAck
+CAL 0 4 ShowResult
+CAL 1 0 WaitForMessage
+EVT 0 0 DrawEvent
+RET 0 4 ShowResult
 

@@ -224,7 +224,6 @@ class ReadThread(threading.Thread):
             self.compiler.ybase_increased()
             self.window.updated = True
             self.window.figure_lock.release()
-        print "ReadThread: exit for ", self.fn
 
 
 if __name__ == "__main__":
