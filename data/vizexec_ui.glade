@@ -17,14 +17,14 @@
             <child>
               <object class="GtkMenuItem" id="menuitem1">
                 <property name="visible">True</property>
-                <property name="label" translatable="yes">&#x30D5;&#x30A1;&#x30A4;&#x30EB;(_F)</property>
+                <property name="label" translatable="yes">_File</property>
                 <property name="use_underline">True</property>
                 <child type="submenu">
                   <object class="GtkMenu" id="menu1">
                     <property name="visible">True</property>
                     <child>
                       <object class="GtkImageMenuItem" id="MniOpen">
-                        <property name="label" translatable="yes">&#x30ED;&#x30B0;&#x3092;&#x958B;&#x304F; (_O)</property>
+                        <property name="label" translatable="yes">_Open log file</property>
                         <property name="visible">True</property>
                         <property name="use_underline">True</property>
                         <property name="image">image2</property>
@@ -53,7 +53,7 @@
             <child>
               <object class="GtkMenuItem" id="menuitem2">
                 <property name="visible">True</property>
-                <property name="label" translatable="yes">&#x30D8;&#x30EB;&#x30D7; (_H)</property>
+                <property name="label" translatable="yes">_Help</property>
                 <property name="use_underline">True</property>
                 <child type="submenu">
                   <object class="GtkMenu" id="menu2">
@@ -106,8 +106,9 @@
     <property name="program_name">VizEXEC</property>
     <property name="version">0.1</property>
     <property name="copyright" translatable="yes">Copyright &#xA9; 2011 Sunagae</property>
-    <property name="comments" translatable="yes">&#x4E26;&#x5217;&#x5B9F;&#x884C;&#x8996;&#x899A;&#x5316;&#x30C4;&#x30FC;&#x30EB;</property>
+    <property name="comments" translatable="yes">Paralell Execution Visualizer</property>
     <property name="website">http://sunagae.net/software/vizexec</property>
+    <property name="license" translatable="yes">Licensed under the MIT-Licence</property>
     <property name="authors">Sunagae</property>
     <child internal-child="vbox">
       <object class="GtkVBox" id="dialog-vbox1">
@@ -149,12 +150,13 @@
             <property name="layout_style">end</property>
             <child>
               <object class="GtkButton" id="BtnOpen">
-                <property name="label" translatable="yes">&#x958B;&#x304F; (_O)</property>
+                <property name="label">gtk-open</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="has_focus">True</property>
                 <property name="receives_default">True</property>
                 <property name="use_underline">True</property>
+                <property name="use_stock">True</property>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -164,7 +166,7 @@
             </child>
             <child>
               <object class="GtkButton" id="BtnOpenAppend">
-                <property name="label" translatable="yes">&#x958B;&#x3044;&#x3066;&#x8FFD;&#x8A18; (_A)</property>
+                <property name="label" translatable="yes">Open _Append</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
@@ -178,11 +180,12 @@
             </child>
             <child>
               <object class="GtkButton" id="button1">
-                <property name="label" translatable="yes">&#x30AD;&#x30E3;&#x30F3;&#x30BB;&#x30EB; (_C)</property>
+                <property name="label">gtk-cancel</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
                 <property name="use_underline">True</property>
+                <property name="use_stock">True</property>
               </object>
               <packing>
                 <property name="expand">False</property>

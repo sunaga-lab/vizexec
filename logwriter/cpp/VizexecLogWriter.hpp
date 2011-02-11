@@ -1,15 +1,15 @@
 /**
  * @file  VizexecLogWriter.hpp
- * @brief VizEXEC用ログライター
+ * @brief Log Writer for VizEXEC
  *
  * @author Sunagae
  * @date 2011-02-11
  * 
- * VizEXECで視覚化するためのログライター
- * 視覚化したい部分に適当なマーカーマクロを書き込むことで、その部分の視覚化をすることができる。
- * 詳細は各マクロの説明を。
+ * Log Writer for VizEXEC visualization.
+ * You can visualize your program with writing the Marker Macro where you want to be.
+ * Details are in the macro's comment or the web site.
  * 
- * ログの書き込み処理はスレッド化されているので、性能に対するオーバーヘッドはそんなにないはず。。。
+ * Log writing processing are threadized, so I belive there is only few overhead...
  * 
  */
 
@@ -21,35 +21,35 @@
 
 
 #ifdef ENABLE_VIZEXEC
-/// ロギングの開始を指示する。他のVZE_***マクロを使用する前に必ず呼び出す
+/// Marker for beginning log writer, must called before all other marker macros
 #	define VZE_START \
 		vizexec::EnableLogWriter();
-/// シーケンス図に出力する関数マーカー
+/// Marker for functions
 #	define VZE_FUNC 	\
 		vizexec::func_tracer __vzp_tracer(__func__);
-/// シーケンス図に出力する関数マーカー（別名を使用）
+/// Marker for functions with appearing other name
 #	define VZE_FUNCCUSTOM(name) \
 		vizexec::func_tracer __vzp_tracer(name);
-/// フェーズマーカー
+/// Marker of phase change
 #	define VZE_PHASE(name) \
 		vizexec::WritePhase(name);
-/// メッセージ送信マーカー
+/// Marker of message sending
 #	define VZE_SEND1(ptr)		\
 		vizexec::WriteSend(vizexec::get_ptr(ptr));
-/// メッセージ受信マーカー
+/// Marker of message receiving
 #	define VZE_RECV1(ptr)		\
 		vizexec::WriteRecv(vizexec::get_ptr(ptr));
-/// メッセージ送信マーカー (2 params)
+/// Marker of message sending (2 params)
 #	define VZE_SEND2(p1, p2)		\
 		vizexec::WriteSend(vizexec::get_ptr(p1), vizexec::get_ptr(p2));
-/// メッセージ受信マーカー (2 params)
+/// Marker of message receiving (2 params)
 #	define VZE_RECV2(p1, p2)		\
 		vizexec::WriteRecv(vizexec::get_ptr(p1), vizexec::get_ptr(p2));
-/// イベントマーカー
+/// Marker of events
 #	define VZE_EVENT(str)		\
 		vizexec::WriteEvent(str);
 
-/// スレッド名マーカー
+/// Marker of thread name
 #	define VZE_THREADNAME(name)		\
 		vizexec::SetCurrentThreadName(name);
 

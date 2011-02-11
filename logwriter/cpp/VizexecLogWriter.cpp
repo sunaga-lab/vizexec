@@ -1,15 +1,9 @@
 /**
- * @file  VizexecLogWriter.hpp
- * @brief VizEXEC用ログライター
+ * @file  VizexecLogWriter.cpp
+ * @brief Log Writer for VizEXEC
  *
  * @author Sunagae
  * @date 2011-02-11
- * 
- * VizEXECで視覚化するためのログライター
- * 視覚化したい部分に適当なマーカーマクロを書き込むことで、その部分の視覚化をすることができる。
- * 詳細は各マクロの説明を。
- * 
- * ログの書き込み処理はスレッド化されているので、性能に対するオーバーヘッドはそんなにないはず。。。
  * 
  */
 #include <string>
@@ -25,7 +19,7 @@
 using namespace std;
 using namespace boost;
 
-/// ログバッファのサイズ、バッファがいっぱいになるとスレッドはブロックする
+/// Size of log buffer, when become full, program will be blocked at the markers.
 #define LOG_BUFFER_MAX 1000
 
 

@@ -1,13 +1,13 @@
 /**
  * @file  Sample.cpp
- * @brief VizexecLogWriterの使用サンプル
+ * @brief Usage sample for VizexecLogWriter
  *
  * @author Sunagae
  * @date 2011-02-11
  */
 
-// VizexecLogWriterを有効化するためにはENABLE_VIZEXECマクロを定義する。
-// これを定義しないと、VZE_***マクロはすべて無視される
+// Define ENABLE_VIZEXEC to enable VizexecLogWriter
+// When not, VZE_*** macros will be ignored.
 #define ENABLE_VIZEXEC
 
 #include <string>

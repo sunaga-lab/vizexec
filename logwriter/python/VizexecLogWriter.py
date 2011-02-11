@@ -6,7 +6,13 @@ import threading
 log_file = None
 time_counter = 0
 
+# for internal
+def build_id(params):
+    return "_".join(str(p) for p in params)
+
+
 def start():
+    """ Start LogWriter """
     global log_file
     
     if "VIZEXEC_LOGFILE" in os.environ:
@@ -39,10 +45,12 @@ def write_log_notime(logtype, *params):
     log_file.flush()
 
 def func(f):
+    """ Marker for functions """
     return func_custom(f.func_name)(f)
     
 
 def func_custom(fname):
+    """ Marker for functions with custom name """
     def decorator(f):
         def decorated(*idp, **kwp):
             try:
@@ -53,20 +61,25 @@ def func_custom(fname):
         return decorated
     return decorator
 
-def build_id(params):
-    return "_".join(str(p) for p in params)
 
 def send(*msgobj):
+    """ Sending marker """
     write_log("SND", build_id(msgobj))
 
 def recv(*msgobj):
+    """ Receiving marker """
     write_log("RCV", build_id(msgobj))
 
 def thread_name(name):
+    """ Thread naming marker """
     write_log_notime("TNM", name)
 
 def event(ename):
+    """ Event marker """
     write_log("EVT", ename)
 
 def phase(pname):
+    """ Phase change marker """
     write_log("PHS", pname)
+
+
