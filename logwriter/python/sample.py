@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 
 import VizexecLogWriter as vze
+import threading
+import time
 
 gMessageBuf = None
 gAckBuf = None
@@ -10,14 +12,17 @@ gAckBuf = None
 #------------------------------------------------------------------------------
 @vze.func
 def WaitForMessage():
+    global gMessageBuf
     while not gMessageBuf:
         time.sleep(1.0)
-    vze.recv(gMessageBuf)
-    return gMessageBuf
+    msg = gMessageBuf
+    gMessageBuf = None
+    vze.recv(msg)
+    return msg
 
 @vze.func
 def ProcessMessage(msg):
-    time.sleep(1000)
+    time.sleep(1.0)
     vze.event("MessageProcessEvent")
     # do something
     time.sleep(2.0)
@@ -26,7 +31,7 @@ def ProcessMessage(msg):
 @vze.func
 def SendAck(msg):
     global gAckBuf
-    VZE_SEND1(msg)
+    vze.send(msg)
     gAckBuf = msg
 
 @vze.func_custom("ThreadMain")
@@ -46,7 +51,7 @@ def CreateThread():
     t = threading.Thread(target = process_thread)
     t.setDaemon(True)
     t.start()
-    time.sleep(1000)
+    time.sleep(1.0)
 
 
 @vze.func
@@ -59,7 +64,7 @@ def SendMessage(msg):
 def WaitForAck():
     global gAckBuf
     while not gAckBuf:
-        time.sleep(1000)
+        time.sleep(1.0)
     vze.recv(gAckBuf)
     return gAckBuf
 

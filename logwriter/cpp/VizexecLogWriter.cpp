@@ -230,7 +230,8 @@ void EnableLogWriter()
         atexit(LogWriteThreadKill);
     }
 
-	WriteComment("Start VizEXEC cpp");
+	WriteComment("Start VizEXEC ");
+	WriteComment("writer: cpp-vlw");
 	cout << "VizEXEC: Waiting log write" << endl;
 	while(!gLog.empty())
 	{
