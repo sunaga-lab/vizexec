@@ -23,11 +23,6 @@ class YPosComparable:
     def __le__(self, other):
         return self.ypos <= other.ypos
 
-    def __eq__(self, other):
-        return self.ypos == other.ypos
-
-    def __ne__(self, other):
-        return self.ypos != other.ypos
 
     def __gt__(self, other):
         return self.ypos > other.ypos
@@ -48,6 +43,8 @@ class StackFrame:
     def __init__(self, func_name, start_ypos):
         self.func_name = func_name
         self.start_ypos = start_ypos
+        self.call_entity = None
+        self.return_entity = None
 
 class Communication:
     def __init__(self):
@@ -84,6 +81,7 @@ DEFAULT_PARAMS = {
     'linecolor': None,
     'linewidth': 2.0,
     'dash': [],
+    'associated': None
 }
 
 class ParamClass:
@@ -94,6 +92,12 @@ class ParamClass:
     
     def __getattr__(self, name):
         return self.d[name]
+
+    def __setattr__(self, name, value):
+        if name == 'd':
+            self.__dict__['d'] = value
+        else:
+            self.__dict__['d'][name] = value
 
     def __hasattr__(self, name):
         return name in self.d
@@ -129,45 +133,16 @@ class Lifeline:
         if self.seqdata.synchronized:
             self.current_ypos = self.seqdata.current_ypos
         self.current_stack = self.current_stack[:]
-        self.current_stack.append(StackFrame(name, self.current_ypos))
+        frm = StackFrame(name, self.current_ypos)
+        self.current_stack.append(frm)
+        return frm
 
     def stack_pop(self):
         self.current_stack = self.current_stack[:]
         self.current_stack.pop()
 
-    def put_lifeline_start(self):
-        entity = self.new_entity("lifeline_start", 30)
-        return entity
-
-    def put_call(self, func_name):
-        self.stack_push(func_name)
-        entity = self.new_entity("call")
-        entity.func_name = func_name
-        return entity
-
-    def put_return(self):
-        self.stack_pop()
-        entity = self.new_entity("return")
-        return entity
-
     def put_thread_name(self, name):
         self.lifeline_name = name
-
-    def put_recv(self, comm_obj):
-        entity = self.new_entity("recv")
-        entity.comm = comm_obj
-        return entity
-
-    def put_send(self, comm_obj):
-        entity = self.new_entity("send")
-        entity.comm = comm_obj
-        return entity
-
-    def put_event(self, label):
-        entity = self.new_entity("event", 20)
-        entity.label = label
-        return entity
-
 
     def bar_xpos(self, stk, align = "l"):
         if align == "c":
@@ -177,7 +152,6 @@ class Lifeline:
         else:
             align_int = 0
         return len(stk)*BAR_WIDTH + align_int + 20 + self.lane * 150
-
 
     def parse_line_flags(self, p):
         ctx = self.ctx
@@ -189,6 +163,8 @@ class Lifeline:
             ctx.set_dash([], 0)
 
     def draw_line(self, **prms):
+        if self.only_check:
+            return
         p = ParamClass(prms)
         self.ctx.move_to(p.src[0], p.src[1])
         self.ctx.line_to(p.dest[0], p.dest[1])
@@ -203,6 +179,18 @@ class Lifeline:
         y0 = p.pos[1]
         xs = p.size[0]
         ys = p.size[1]
+        
+        if ( self.seqdata.selected_pos and
+            x0 < self.seqdata.selected_pos[0] and y0 < self.seqdata.selected_pos[1] and
+            self.seqdata.selected_pos[0] < x0+xs and self.seqdata.selected_pos[1] < y0+ys):
+                selected = True
+                self.seqdata.selected_object = p.associated
+
+        if self.only_check:
+            return
+            
+        if p.associated and self.seqdata.selected_object == p.associated:
+            p.bgcolor = '#EEEEFF'
 
         if p.bgcolor is not None:
             ctx.rectangle(x0,y0,xs,ys)
@@ -234,7 +222,7 @@ class Lifeline:
 
     def draw_mark(self, stk, ypos, label):
         x = self.bar_xpos(stk, "c") - self.x
-        y = ypos - self.y
+        y = ypos - self.y + 10
         sz = 5
         x0 = x - sz
         y0 = y - sz
@@ -258,7 +246,7 @@ class Lifeline:
         )
 
         self.draw_box(
-            pos = (x + 6, y-10),
+            pos = (x + 6, y - 10),
             size = (100,20),
             text = label,
             textalign = "left",
@@ -267,12 +255,13 @@ class Lifeline:
         )
 
 
-    def draw(self, ctx, offset_x, offset_y, w, h):
+    def draw(self, ctx, offset_x, offset_y, w, h, only_check = False):
         self.ctx = ctx
         self.x = offset_x
         self.y = offset_y
         self.w = w
         self.h = h
+        self.only_check = only_check
 
         elist = self.entity_list
         idx = bisect.bisect_left(elist, YPosComparable(self.y)) - 1
@@ -307,15 +296,39 @@ class Lifeline:
                     comm.recv_entity.lifeline.bar_xpos(comm.recv_entity.stack, "c") + 2 - self.x,
                     comm.recv_entity.ypos - self.y
                 ),
-            linewidth = 2.0,
-            linecolor = '#0000FF'
+            linewidth = 1.0,
+            linecolor = '#0000FF',
+            dash = [6,2],
         )
 
-    def draw_send(self, entity):
-        self.draw_comm(entity.comm)
+    def draw_return_common(self, stk, ypos):
+        ctx = self.ctx
+        x0 = self.bar_xpos(stk)
+        y0 = stk[-1].start_ypos
+        y1 = ypos
+        w = BAR_WIDTH
+        h = y1 - y0
+        
+        self.draw_box(
+            pos = (x0 - self.x, y0 - self.y),
+            size = (w,h),
+            linecolor = '#000000',
+            linewidth = 1.0,
+            associated = stk[-1].call_entity,
+        )
 
-    def draw_recv(self, entity):
-        self.draw_comm(entity.comm)
+    def draw_all_return(self):
+        stk = self.last_stack[:]
+        while stk:
+            self.draw_return_common(stk, self.y + self.h + 2)
+            stk.pop()
+
+    def put_call(self, func_name):
+        frm = self.stack_push(func_name)
+        entity = self.new_entity("call")
+        entity.func_name = func_name
+        frm.call_entity = entity
+        return entity
 
     def draw_call(self, entity):
         ctx = self.ctx
@@ -327,9 +340,54 @@ class Lifeline:
             fontfamily = FONTNAME,
             bgcolor = None,
             pos = (self.bar_xpos(entity.stack, "r") + 2 - self.x, entity.ypos - self.y),
-            size = (100, 20)
+            size = (100, 20),
+            associated = entity,
         )
+
+        x0 = self.bar_xpos(stk)
+        y0 = entity.ypos - self.y
+        y1 = stk[-1].return_entity.ypos - self.y if stk[-1].return_entity else self.h
+        w = BAR_WIDTH
+        h = y1 - y0
         
+        self.draw_box(
+            pos = (x0 - self.x, y0 - self.y),
+            size = (w,h),
+            linecolor = '#000000',
+            linewidth = 1.0,
+            associated = stk[-1].call_entity,
+        )
+
+    def put_return(self):
+        frm = self.current_stack[-1]
+        self.stack_pop()
+        entity = self.new_entity("return")
+        frm.return_entity = entity
+        return entity
+
+    def draw_return(self, entity):
+        self.draw_return_common(self.last_stack, entity.ypos)
+
+    def put_send(self, comm_obj):
+        entity = self.new_entity("send", 5)
+        entity.comm = comm_obj
+        return entity
+
+    def draw_send(self, entity):
+        self.draw_comm(entity.comm)
+
+    def put_recv(self, comm_obj):
+        entity = self.new_entity("recv", 5)
+        entity.comm = comm_obj
+        return entity
+
+    def draw_recv(self, entity):
+        self.draw_comm(entity.comm)
+
+    def put_lifeline_start(self):
+        entity = self.new_entity("lifeline_start", 30)
+        return entity
+
     def draw_lifeline_start(self, entity):
         ctx = self.ctx
         self.draw_box(
@@ -342,27 +400,11 @@ class Lifeline:
             size = (120, 30)
         )
 
-    def draw_return_common(self, stk, ypos):
-        ctx = self.ctx
-        x0 = self.bar_xpos(stk)
-        y0 = stk[-1].start_ypos
-        y1 = ypos
-        w = BAR_WIDTH
-        h = y1 - y0
-        
-        ctx.rectangle(x0 - self.x, y0 - self.y, w, h)
-        ctx.set_source_rgb(*StrToColor(LINECOLOR))
-        ctx.set_line_width(LINEWIDTH)
-        ctx.stroke()
 
-    def draw_return(self, entity):
-        self.draw_return_common(self.last_stack, entity.ypos)
-
-    def draw_all_return(self):
-        stk = self.last_stack[:]
-        while stk:
-            self.draw_return_common(stk, self.y + self.h)
-            stk.pop()
+    def put_event(self, label):
+        entity = self.new_entity("event", 20)
+        entity.label = label
+        return entity
 
     def draw_event(self, entity):
         self.draw_mark(entity.stack, entity.ypos, entity.label)
@@ -375,6 +417,8 @@ class SequenceData:
         self.synchronized = True
         self.open_sending = {}
         self.open_receiving = {}
+        self.selected_pos = None
+        self.selected_object = None
 
     def get_lifeline(self, llid):
         if llid not in self.lifelines:
@@ -383,14 +427,16 @@ class SequenceData:
             self.lifelines[llid].put_lifeline_start()
         return self.lifelines[llid]
     
-    def draw(self, ctx, offset_x, offset_y, w, h):
+    def draw(self, ctx, offset_x, offset_y, w, h, only_check = False):
         for key, lifeline in self.lifelines.items():
-            lifeline.draw(ctx, offset_x - 50, offset_y, w, h)
+            lifeline.draw(ctx, offset_x - 50, offset_y, w, h, only_check)
 
     def add_data_line(self, line):
         cmd = shlex.split(line.strip())
         if not cmd:
             return
+        elif cmd[0] == '#':
+            pass
         elif cmd[0] == 'CAL':
             self.get_lifeline(cmd[1]).put_call(cmd[3])
         elif cmd[0] == 'RET':

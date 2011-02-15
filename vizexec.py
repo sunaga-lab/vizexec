@@ -127,7 +127,7 @@ class VizexecGUI:
             self.updated = False
         gobject.timeout_add(self.UpdateInterval, self.update_timeout)
 
-    def redraw(self):
+    def redraw(self, check_first = False):
         self.figure_lock.acquire()
         self.update_back_buffer()
         self.fit_figure_size()
@@ -145,7 +145,8 @@ class VizexecGUI:
         ctx.rectangle(0,0, w,h)
         ctx.fill()
         
-
+        if check_first:
+            self.seqdata.draw(ctx, offset_x, offset_y, w, h, True)
         self.seqdata.draw(ctx, offset_x, offset_y, w, h)
         
         drawarea_ctx.set_source_surface(self.back_buffer, 0, 0)
@@ -196,6 +197,11 @@ class VizexecGUI:
         self.AboutDialog.run()
         self.AboutDialog.hide()
 
+    def drawing_area_button_press_event_cb(self, e, data):
+        self.seqdata.selected_object = None
+        self.seqdata.selected_pos = (data.x,data.y)
+        self.redraw(True)
+        self.seqdata.selected_pos = None
 
 class ReadThread(threading.Thread):
     def __init__(self, fn, window):
