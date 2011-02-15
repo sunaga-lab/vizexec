@@ -168,14 +168,6 @@ class Lifeline:
         entity.label = label
         return entity
 
-    def draw(self, ctx, offset_x, offset_y, w, h):
-        drawer = LifelineDrawer(self)
-        drawer.ctx = ctx
-        drawer.x = offset_x
-        drawer.y = offset_y
-        drawer.w = w
-        drawer.h = h
-        drawer.draw()
 
     def bar_xpos(self, stk, align = "l"):
         if align == "c":
@@ -186,14 +178,6 @@ class Lifeline:
             align_int = 0
         return len(stk)*BAR_WIDTH + align_int + 20 + self.lane * 150
 
-
-
-
-class LifelineDrawer:
-    def __init__(self, ll):
-        self.stack = []
-        self.ll = ll
-        self.ctx = None
 
     def parse_line_flags(self, p):
         ctx = self.ctx
@@ -249,7 +233,7 @@ class LifelineDrawer:
 
 
     def draw_mark(self, stk, ypos, label):
-        x = self.ll.bar_xpos(stk, "c") - self.x
+        x = self.bar_xpos(stk, "c") - self.x
         y = ypos - self.y
         sz = 5
         x0 = x - sz
@@ -283,9 +267,14 @@ class LifelineDrawer:
         )
 
 
-    def draw(self):
-        ctx = self.ctx
-        elist = self.ll.entity_list
+    def draw(self, ctx, offset_x, offset_y, w, h):
+        self.ctx = ctx
+        self.x = offset_x
+        self.y = offset_y
+        self.w = w
+        self.h = h
+
+        elist = self.entity_list
         idx = bisect.bisect_left(elist, YPosComparable(self.y)) - 1
         if idx == -1:
             idx = 0
@@ -337,25 +326,25 @@ class LifelineDrawer:
             fontsize = FONTSIZE,
             fontfamily = FONTNAME,
             bgcolor = None,
-            pos = (self.ll.bar_xpos(entity.stack, "r") + 2 - self.x, entity.ypos - self.y),
+            pos = (self.bar_xpos(entity.stack, "r") + 2 - self.x, entity.ypos - self.y),
             size = (100, 20)
         )
         
     def draw_lifeline_start(self, entity):
         ctx = self.ctx
         self.draw_box(
-            text = self.ll.get_display_name(),
+            text = self.get_display_name(),
             textalign = 'center',
             linecolor = '#000000',
             fontsize = FONTSIZE,
             fontfamily = FONTNAME,
-            pos = (self.ll.bar_xpos(entity.stack, "r") - 40 - self.x, entity.ypos - self.y),
+            pos = (self.bar_xpos(entity.stack, "r") - 40 - self.x, entity.ypos - self.y),
             size = (120, 30)
         )
 
     def draw_return_common(self, stk, ypos):
         ctx = self.ctx
-        x0 = self.ll.bar_xpos(stk)
+        x0 = self.bar_xpos(stk)
         y0 = stk[-1].start_ypos
         y1 = ypos
         w = BAR_WIDTH
