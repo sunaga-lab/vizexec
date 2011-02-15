@@ -13,6 +13,7 @@ try:
     import gtk
     import gtk.glade
     import cairo
+    import pango
     import time
 except:
     sys.exit(1)
@@ -37,6 +38,8 @@ class VizexecGUI:
         self.import_control("drawing_scroll")
         self.import_control("drawing_area")
         self.import_control("FileChooserDialog")
+        self.import_control("TbfInfo")
+        self.import_control("TvwInfo")
         self.window.show()
         
         self.hadjust = gtk.Adjustment()
@@ -67,6 +70,10 @@ class VizexecGUI:
         flt.set_name("すべてのファイル")
         flt.add_pattern("*")
         self.FileChooserDialog.add_filter(flt)
+        
+        pangoFont = pango.FontDescription("monospace 9")
+        self.TvwInfo.modify_font(pangoFont)
+
 
 
     def update_back_buffer(self):
@@ -202,6 +209,11 @@ class VizexecGUI:
         self.seqdata.selected_pos = (data.x,data.y)
         self.redraw(True)
         self.seqdata.selected_pos = None
+        
+        if self.seqdata.selected_object:
+            obj = self.seqdata.selected_object
+            self.TbfInfo.set_text("name = " + obj.name)
+            
 
 class ReadThread(threading.Thread):
     def __init__(self, fn, window):

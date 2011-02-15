@@ -37,6 +37,7 @@ class LifelineEntity(YPosComparable):
         self.lifeline = lifeline
         self.event_type = event_type
         self.stack = stack
+        self.name = ""
 
 
 class StackFrame:
@@ -272,6 +273,12 @@ class Lifeline:
             self.last_stack = elist[max(idx-1, 0)].stack
         else:
             self.last_stack = []
+            
+        stk = self.last_stack[:]
+        while stk:
+            self.draw_call_base(stk)
+            stk.pop()
+            
         while True:
             if idx >= len(elist) or elist[idx].ypos > self.y + self.h:
                 break
@@ -301,32 +308,14 @@ class Lifeline:
             dash = [6,2],
         )
 
-    def draw_return_common(self, stk, ypos):
-        ctx = self.ctx
-        x0 = self.bar_xpos(stk)
-        y0 = stk[-1].start_ypos
-        y1 = ypos
-        w = BAR_WIDTH
-        h = y1 - y0
-        
-        self.draw_box(
-            pos = (x0 - self.x, y0 - self.y),
-            size = (w,h),
-            linecolor = '#000000',
-            linewidth = 1.0,
-            associated = stk[-1].call_entity,
-        )
-
     def draw_all_return(self):
-        stk = self.last_stack[:]
-        while stk:
-            self.draw_return_common(stk, self.y + self.h + 2)
-            stk.pop()
+        pass
 
     def put_call(self, func_name):
         frm = self.stack_push(func_name)
         entity = self.new_entity("call")
         entity.func_name = func_name
+        entity.name = func_name
         frm.call_entity = entity
         return entity
 
@@ -344,14 +333,29 @@ class Lifeline:
             associated = entity,
         )
 
-        x0 = self.bar_xpos(stk)
+        x0 = self.bar_xpos(entity.stack)
         y0 = entity.ypos - self.y
+        y1 = entity.stack[-1].return_entity.ypos - self.y if entity.stack[-1].return_entity else self.h + 10
+        w = BAR_WIDTH
+        h = y1 - y0
+        
+        self.draw_box(
+            pos = (x0 - self.x, y0),
+            size = (w,h),
+            linecolor = '#000000',
+            linewidth = 1.0,
+            associated = entity.stack[-1].call_entity,
+        )
+
+    def draw_call_base(self, stk):
+        x0 = self.bar_xpos(stk)
+        y0 = -2
         y1 = stk[-1].return_entity.ypos - self.y if stk[-1].return_entity else self.h
         w = BAR_WIDTH
         h = y1 - y0
         
         self.draw_box(
-            pos = (x0 - self.x, y0 - self.y),
+            pos = (x0 - self.x, y0),
             size = (w,h),
             linecolor = '#000000',
             linewidth = 1.0,
@@ -366,7 +370,7 @@ class Lifeline:
         return entity
 
     def draw_return(self, entity):
-        self.draw_return_common(self.last_stack, entity.ypos)
+        pass
 
     def put_send(self, comm_obj):
         entity = self.new_entity("send", 5)
