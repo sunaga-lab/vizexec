@@ -17,16 +17,16 @@ try:
 except:
     sys.exit(1)
 
-import figure_data
 import threading
 import gobject
 
-from sequence_data_compiler_realtime import *
+from seqdata import SequenceData
+
 
 class VizexecGUI:
     def __init__(self):
-        self.compiler = None
-        self.figure = None
+        self.seqdata = None
+
         self.UpdateInterval = 10
         self.builder = gtk.Builder()
         self.builder.add_from_file("data/vizexec_ui.glade")
@@ -52,7 +52,7 @@ class VizexecGUI:
         self.back_buffer = None
         self.update_back_buffer()
 
-        self.figure = figure_data.FigureData()
+        self.new_data()
         self.figure_lock = threading.RLock()
         self.fit_figure_size()
         self.updated = False
@@ -79,21 +79,17 @@ class VizexecGUI:
 
         self.back_buffer = cairo.ImageSurface(cairo.FORMAT_RGB24, alloc.width, alloc.height)
         
-
-
-    def set_figure(self, fig):
-        self.figure = fig
-        self.fit_figure_size()
+        
 
     def fit_figure_size(self):
         is_max = self.vadjust.get_value() >= (self.vadjust.get_upper() - self.vadjust.get_page_size() - 32)
         
         alloc = self.drawing_area.get_allocation()
-        if self.figure.get_width() > alloc.width:
-            self.hadjust.set_upper(self.figure.get_width() + 60)
+        if self.seqdata.get_width() > alloc.width:
+            self.hadjust.set_upper(self.seqdata.get_width() + 60)
             self.hadjust.set_page_size(alloc.width)
-        if self.figure.get_height() > alloc.height:
-            self.vadjust.set_upper(self.figure.get_height() + 60)
+        if self.seqdata.get_height() > alloc.height:
+            self.vadjust.set_upper(self.seqdata.get_height() + 60)
             self.vadjust.set_page_size(alloc.height)
 
         if is_max:
@@ -149,23 +145,19 @@ class VizexecGUI:
         ctx.rectangle(0,0, w,h)
         ctx.fill()
         
-        for node in self.figure.get_node_in_rect(offset_x, offset_y, offset_x+w, offset_y+h):
-            node.draw(ctx, offset_x, offset_y)
+
+        self.seqdata.draw(ctx, offset_x, offset_y, w, h)
         
         drawarea_ctx.set_source_surface(self.back_buffer, 0, 0)
         drawarea_ctx.paint()
         self.figure_lock.release()
 
 
-    def new_figure(self):
-        fig = figure_data.FigureData()
-        self.set_figure(fig)
-        self.compiler = SequenceCompiler()
-        # compiler.set_data(sample_data)
-        self.compiler.fig = self.figure
+    def new_data(self):
+        self.seqdata = SequenceData()
 
     def open_new(self, filename):
-        self.new_figure()
+        self.new_data()
         self.open_append(filename)
 
     def open_append(self, filename):
@@ -210,7 +202,7 @@ class ReadThread(threading.Thread):
         threading.Thread.__init__(self)
         self.fn = fn
         self.window = window
-        self.compiler = window.compiler
+        self.seqdata = window.seqdata
         self.setDaemon(True)
 
     def run(self):
@@ -220,8 +212,7 @@ class ReadThread(threading.Thread):
             if not line:
                 break
             self.window.figure_lock.acquire()
-            self.compiler.add_data_line(line)
-            self.compiler.ybase_increased()
+            self.seqdata.add_data_line(line)
             self.window.updated = True
             self.window.figure_lock.release()
 

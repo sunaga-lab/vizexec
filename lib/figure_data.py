@@ -26,7 +26,6 @@ class FigureNode:
         
     def draw_custom(self, ctx, offset_x, offset_y):
         pass
-        
 
     def get_node_in_rect(self, x0, y0, x1, y1):
         return
