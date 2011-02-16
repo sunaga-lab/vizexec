@@ -33,7 +33,7 @@ class TCPLogHandler(SocketServer.BaseRequestHandler):
         self.window = self.server.window
         self.thread_group = self.window.new_thread_group_id()
         self.buf = ""
-        print "Initiailize handler:" , self.thread_group
+        print "Connected, group = " , self.thread_group
 
     def handle(self):
         while True:
@@ -46,13 +46,12 @@ class TCPLogHandler(SocketServer.BaseRequestHandler):
                 continue
             line = self.buf[:idx]
             self.buf = self.buf[idx + 1:]
-            print "Received:", line
             with self.window.seqdata_lock:
                 self.window.seqdata.add_data_line(line, self.thread_group)
                 self.window.updated = True
 
     def finish(self):
-        print "fin"
+        print "Disconnected, group = " , self.thread_group
         with self.window.seqdata_lock:
             self.window.seqdata.terminated_lifeline_group(self.thread_group)
             self.window.updated = True

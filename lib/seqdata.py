@@ -151,7 +151,13 @@ class Lifeline:
         self.current_ypos = start_ypos
         self.current_stack = []
         self.lifeline_name = str(lifeline_id)
+        self.terminated = False
         self.lane = 0
+
+    def get_current_ypos(self):
+        if self.seqdata.synchronized:
+            self.current_ypos = self.seqdata.current_ypos
+        return self.current_ypos
 
     def get_id(self):
         return self.lifeline_id
@@ -358,7 +364,6 @@ class Lifeline:
 
     def draw_comm(self, comm):
         if not comm.is_complete():
-            print str(comm), "is not complete"
             return
         ctx = self.ctx
         self.draw_line(
@@ -438,6 +443,24 @@ class Lifeline:
     def draw_return(self, entity):
         pass
 
+    def put_phase(self, phase_name):
+        entity = self.new_entity("phase")
+        entity.func_name = phase_name
+        return entity
+
+    def draw_phase(self, entity):
+        x = self.bar_xpos(entity.stack, "c") - self.x
+        y = entity.ypos - self.y + 10
+        
+        self.draw_box(
+            pos = (x + 6, y - 10),
+            size = (100,20),
+            text = entity.func_name,
+            textalign = "left",
+            linecolor = None,
+            associated = entity,
+        )
+
     def put_send(self, comm_obj):
         entity = self.new_entity("send", 5)
         entity.comm = comm_obj
@@ -486,7 +509,11 @@ class Lifeline:
             frm = self.current_stack[-1]
             self.stack_pop()
             frm.return_entity = entity
+
+        if self.seqdata.synchronized:
+            self.current_ypos = self.seqdata.current_ypos
         self.end_ypos = self.current_ypos
+        self.terminated = True
         return entity
 
 
@@ -523,14 +550,15 @@ class SequenceData:
             self.lifelines[llid] = Lifeline(self, llid, self.current_ypos)
             self.lifelines[llid].lane = self.search_unused_lane()
             self.lifelines[llid].put_lifeline_start()
+            
         return self.lifelines[llid]
     
     def draw(self, ctx, offset_x, offset_y, w, h, only_check = False):
         for key, lifeline in self.lifelines.items():
             if lifeline.start_ypos > offset_y + h:
-                return
+                continue
             if lifeline.end_ypos and offset_y > lifeline.end_ypos:
-                return
+                continue
             lifeline.draw(ctx, offset_x - 50, offset_y, w, h, only_check)
 
     def keep_raw_log(self, line = "", arr = None):
@@ -553,12 +581,19 @@ class SequenceData:
         if len(cmd) >= 2 and cmd[1] not in ("", "-"):
             lifeline = self.get_lifeline(th_grp + "/" + cmd[1])
             cmd[1] = lifeline.get_id()
+            if lifeline.terminated:
+                print "Thread", lifeline.get_id(), "already terminated command: ", cmd[0]
+                self.keep_raw_log(arr = cmd)
+                return
         else:
             print "Incomplete command: ", cmd[0]
+            self.keep_raw_log(line = line)
             return
 
         if cmd[0] == 'CAL' and len(cmd) >= 4:
             lifeline.put_call(cmd[3])
+        elif cmd[0] == 'PHS' and len(cmd) >= 4:
+            lifeline.put_phase(cmd[3])
         elif cmd[0] == 'RET' and len(cmd) >= 3:
             lifeline.put_return()
         elif cmd[0] == 'TNM' and len(cmd) >= 3:
@@ -597,7 +632,8 @@ class SequenceData:
         for key in self.lifelines:
             if key.startswith(group):
                 self.lifelines[key].put_terminate()
-                self.used_lane.remove(lifeline.lane)
+                self.used_lane.remove(self.lifelines[key].lane)
+                self.keep_raw_log(arr = ['TRM', key])
 
     def read_file(self, filename):
         for line in open(filename, 'r'):

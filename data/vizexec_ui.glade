@@ -34,7 +34,7 @@
                     </child>
                     <child>
                       <object class="GtkImageMenuItem" id="MniRunServer">
-                        <property name="label" translatable="yes">Run as _Server</property>
+                        <property name="label" translatable="yes">Run as Server</property>
                         <property name="visible">True</property>
                         <property name="use_underline">True</property>
                         <property name="image">image1</property>
@@ -51,6 +51,7 @@
                       <object class="GtkImageMenuItem" id="MniSaveAs">
                         <property name="label" translatable="yes">_Save log as</property>
                         <property name="visible">True</property>
+                        <property name="use_underline">True</property>
                         <property name="image">image3</property>
                         <property name="use_stock">False</property>
                         <signal name="activate" handler="MniSaveAs_activate_cb"/>
