@@ -6,7 +6,7 @@ import gtk
 import gtk.glade
 import cairo
 import traceback
-
+from subprocess import list2cmdline
 
 def StrToColor(s):
     col = gtk.gdk.Color(s)
@@ -53,12 +53,23 @@ class LifelineEntity(YPosComparable):
         self.event_type = event_type
         self.stack = stack
         self.name = ""
-        
+        self.info = []
+
     def get_name(self):
         return self.name
 
     def __str__(self):
         return self.get_name()
+
+    def add_info(self, line):
+        self.info.append(line.rstrip())
+
+    def get_info_text(self):
+        return "[{t}{name}]\n{info}".format(
+            t = self.event_type,
+            name = (": " + self.get_name()) if self.get_name() else "",
+            info = '\n'.join(self.info)
+        )
 
 class StackFrame:
     def __init__(self, func_name, start_ypos):
@@ -87,6 +98,10 @@ class Communication:
 
     def get_name(self):
         return self.__str__()
+
+    def get_info_text(self):
+        return self.send_entity.get_info_text() + "\n\n--- TO ---\n\n" + self.recv_entity.get_info_text()
+
 
 BAR_WIDTH = 8
 
@@ -137,6 +152,9 @@ class Lifeline:
         self.current_stack = []
         self.lifeline_name = str(lifeline_id)
         self.lane = 0
+
+    def get_id(self):
+        return self.lifeline_id
 
     def get_display_name(self):
         return self.lifeline_name
@@ -476,20 +494,34 @@ class Lifeline:
         self.draw_mark([0], entity.ypos, "Terminate", None)
 
 
+    def put_info(self, infoline):
+        last_entity = self.entity_list[-1]
+        last_entity.add_info(infoline)
+
 class SequenceData:
     def __init__(self):
         self.lifelines = {}
+        self.used_lane = set([])
         self.current_ypos = 50
         self.synchronized = True
         self.open_sending = {}
         self.open_receiving = {}
         self.selected_pos = None
         self.selected_object = None
+        
+        self.raw_log = []
+
+    def search_unused_lane(self):
+        for i in range(1024):
+            if i not in self.used_lane:
+                self.used_lane.add(i)
+                return i
+        raise "Too many lanes"
 
     def get_lifeline(self, llid):
         if llid not in self.lifelines:
             self.lifelines[llid] = Lifeline(self, llid, self.current_ypos)
-            self.lifelines[llid].lane = len(self.lifelines) - 1
+            self.lifelines[llid].lane = self.search_unused_lane()
             self.lifelines[llid].put_lifeline_start()
         return self.lifelines[llid]
     
@@ -501,25 +533,37 @@ class SequenceData:
                 return
             lifeline.draw(ctx, offset_x - 50, offset_y, w, h, only_check)
 
+    def keep_raw_log(self, line = "", arr = None):
+        self.raw_log.append(line + (list2cmdline(arr) if arr else ""))
+        
+    def save_log_to(self, fn):
+        f = open(fn, 'w')
+        for rlog in self.raw_log:
+            f.write(rlog + "\n")
+        f.close()
+            
     def add_data_line(self, line, th_grp = "d"):
         cmd = shlex.split(line.strip())
         if not cmd:
             return
         elif cmd[0] == '#':
+            self.keep_raw_log(line = line.strip())
             return
         
-        if cmd[1] not in ("", "-"):
+        if len(cmd) >= 2 and cmd[1] not in ("", "-"):
             lifeline = self.get_lifeline(th_grp + "/" + cmd[1])
+            cmd[1] = lifeline.get_id()
         else:
-            lifeline = None
+            print "Incomplete command: ", cmd[0]
+            return
 
-        if cmd[0] == 'CAL':
+        if cmd[0] == 'CAL' and len(cmd) >= 4:
             lifeline.put_call(cmd[3])
-        elif cmd[0] == 'RET':
+        elif cmd[0] == 'RET' and len(cmd) >= 3:
             lifeline.put_return()
-        elif cmd[0] == 'TNM':
+        elif cmd[0] == 'TNM' and len(cmd) >= 3:
             lifeline.put_thread_name(cmd[2])
-        elif cmd[0] == 'SND':
+        elif cmd[0] == 'SND' and len(cmd) >= 4:
             if cmd[3] in self.open_receiving:
                 comm = self.open_receiving[cmd[3]]
                 del self.open_receiving[cmd[3]]
@@ -527,7 +571,7 @@ class SequenceData:
                 comm = Communication()
                 self.open_sending[cmd[3]] = comm
             comm.send_entity = lifeline.put_send(comm)
-        elif cmd[0] == 'RCV':
+        elif cmd[0] == 'RCV' and len(cmd) >= 4:
             if cmd[3] in self.open_sending:
                 comm = self.open_sending[cmd[3]]
                 del self.open_sending[cmd[3]]
@@ -535,19 +579,25 @@ class SequenceData:
                 comm = Communication()
                 self.open_receiving[cmd[3]] = comm
             comm.recv_entity = lifeline.put_recv(comm)
-        elif cmd[0] == 'EVT':
+        elif cmd[0] == 'EVT' and len(cmd) >= 4:
             lifeline.put_event(cmd[3])
 
-        elif cmd[0] == 'TRM':
-            lifeline.put_terminate()
+        elif cmd[0] == 'INF' and len(cmd) >= 3:
+            lifeline.put_info(cmd[2])
 
+        elif cmd[0] == 'TRM' and len(cmd) >= 1:
+            lifeline.put_terminate()
+            self.used_lane.remove(lifeline.lane)
         else:
-            print "Unknown command: ", cmd[0]
+            print "Invalid command: ", cmd[0]
+
+        self.keep_raw_log(arr = cmd)
 
     def terminated_lifeline_group(self, group):
         for key in self.lifelines:
             if key.startswith(group):
                 self.lifelines[key].put_terminate()
+                self.used_lane.remove(lifeline.lane)
 
     def read_file(self, filename):
         for line in open(filename, 'r'):

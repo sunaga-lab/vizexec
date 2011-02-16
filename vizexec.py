@@ -29,6 +29,8 @@ class VizexecGUI:
         self.seqdata = None
         self.current_thread_group_id_max = 0
         self.UpdateInterval = 10
+        self.seqdata_lock = threading.RLock()
+
         self.builder = gtk.Builder()
         self.builder.add_from_file("data/vizexec_ui.glade")
         self.builder.connect_signals(self)
@@ -38,8 +40,11 @@ class VizexecGUI:
         self.import_control("drawing_scroll")
         self.import_control("drawing_area")
         self.import_control("FileChooserDialog")
+        self.import_control("DlgSaveFile")
         self.import_control("TbfInfo")
         self.import_control("TvwInfo")
+        self.import_control("DlgRunServer")
+        self.import_control("EntPortNum")
         self.window.show()
         
         self.hadjust = gtk.Adjustment()
@@ -55,8 +60,10 @@ class VizexecGUI:
         self.back_buffer = None
         self.update_back_buffer()
 
+
+        self.EntPortNum.set_text("5112")
+
         self.new_data()
-        self.seqdata_lock = threading.RLock()
         self.fit_figure_size()
         self.updated = False
         gobject.timeout_add(self.UpdateInterval, self.update_timeout)
@@ -65,11 +72,13 @@ class VizexecGUI:
         flt.set_name("ログファイル")
         flt.add_pattern("*.log")
         self.FileChooserDialog.add_filter(flt)
+        self.DlgSaveFile.add_filter(flt)
 
         flt = gtk.FileFilter()
         flt.set_name("すべてのファイル")
         flt.add_pattern("*")
         self.FileChooserDialog.add_filter(flt)
+        self.DlgSaveFile.add_filter(flt)
         
         pangoFont = pango.FontDescription("monospace 9")
         self.TvwInfo.modify_font(pangoFont)
@@ -164,6 +173,7 @@ class VizexecGUI:
 
     def new_data(self):
         self.seqdata = SequenceData()
+        self.redraw()
 
     def open_new(self, filename):
         self.new_data()
@@ -213,15 +223,39 @@ class VizexecGUI:
         
         if self.seqdata.selected_object:
             obj = self.seqdata.selected_object
-            self.TbfInfo.set_text("name = " + obj.get_name())
-            
+            if hasattr(obj, "get_info_text"):
+                self.TbfInfo.set_text(obj.get_info_text())
+            else:
+                self.TbfInfo.set_text(str(obj))
 
-
+    def open_server(self, portnum):
+        server_thread = TCPServerThread(portnum, self)
+        server_thread.start()
+    
+    def MniRunServer_activate_cb(self, e):
+        resp = self.DlgRunServer.run()
+        self.DlgRunServer.hide()
+        if resp == 1:
+            self.new_data()
+            portnum = int(self.EntPortNum.get_text())
+            self.open_server(portnum)
+        else:
+            return
+    
+    def MniSaveAs_activate_cb(self, e):
+        resp = self.DlgSaveFile.run()
+        self.DlgSaveFile.hide()
+        if resp == 1:
+            with self.seqdata_lock:
+                self.seqdata.save_log_to(self.DlgSaveFile.get_filename())
 
 if __name__ == "__main__":
     mainwindow = VizexecGUI()
     if len(sys.argv) >= 2:
-        mainwindow.open_new(sys.argv[1])
+        if sys.argv[1] == "-s":
+            mainwindow.open_server(int(sys.argv[2]))
+        else:
+            mainwindow.open_new(sys.argv[1])
     gtk.main()
 
 
