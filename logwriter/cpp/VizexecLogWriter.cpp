@@ -10,9 +10,20 @@
 #include <boost/thread.hpp>
 #include <boost/thread/condition.hpp>
 #include <boost/lexical_cast.hpp>
+#include <boost/algorithm/string.hpp>
+#include <sstream>
+
 #include <fstream>
 #include <iostream>
 #include <list>
+#include <vector>
+
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netdb.h>
 
 #include "VizexecLogWriter.hpp"
 
@@ -309,6 +320,25 @@ void WriteComment(const string &comment)
 	PutLogData(buf);
 }
 
+void WriteInfo(const string &info)
+{
+	ONLY_IF_LOGWRITER_ENABLED
+	LogData *buf = NewLogBuffer();
+    buf->LogType = "INF";
+	buf->LogFlag = LF_STRDATA | LF_NOTIME;
+	buf->StrData1 = info;
+	PutLogData(buf);
+}
+
+void WriteTerminate()
+{
+	ONLY_IF_LOGWRITER_ENABLED
+	LogData *buf = NewLogBuffer();
+    buf->LogType = "TRM";
+	buf->LogFlag = 0;
+	PutLogData(buf);
+}
+
 void SetCurrentThreadName(const string &name)
 {
 	ONLY_IF_LOGWRITER_ENABLED
@@ -330,16 +360,130 @@ void WriteEvent(const string &eventstr)
 }
 
 
+
+class LogWriter
+{
+protected:
+    bool error_;
+public:
+    LogWriter(){error_ = false;}
+    virtual ~LogWriter(){}
+    bool IsError(){return error_;}
+    virtual void Write(const string &line) = 0;
+    virtual void Close() = 0;
+};
+
+class FileLogWriter: public LogWriter
+{
+    ofstream strm_;
+public:
+    FileLogWriter(const string &fn)
+        :strm_(fn.c_str())
+    {
+        if(strm_.bad() || strm_.fail())
+        {
+            error_ = true;
+            return;
+        }
+    }
+    void Write(const string &line)
+    {
+        strm_.write(line.c_str(), line.length());
+    }
+    void Close()
+    {
+        strm_.close();
+    }
+};
+
+class SocketLogWriter: public LogWriter
+{
+    int socket_;
+public:
+    SocketLogWriter(const string &host, int port)
+    {
+        string service = lexical_cast<string>(port);
+        socket_ = -1;
+        struct addrinfo hints, *res0;
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_socktype = SOCK_STREAM;
+        hints.ai_family = PF_UNSPEC;
+        int err;
+        if((err = getaddrinfo(host.c_str(), service.c_str(), &hints, &res0)) != 0)
+        {
+            error_ = true;
+            return;
+        }
+
+        for(addrinfo *res = res0; res != NULL; res = res->ai_next)
+        {
+            int sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+            if(sock < 0)
+            {
+                continue;
+            }
+            if(connect(sock, res->ai_addr, res->ai_addrlen) != 0)
+            {
+                close(sock);
+                continue;
+            }
+            socket_ = sock;
+            break;
+        }
+        freeaddrinfo(res0);
+        if(socket_ == -1)
+        {
+            error_ = true;
+        }
+        cout << "VZE: Connected to " << host << ":" << port << endl;
+    }
+    void Write(const string &line)
+    {
+        if(error_)
+            return;
+        string buf = line;
+        while(true)
+        {
+            int len_sent = send(socket_, buf.c_str(), buf.length(), 0);
+            if(len_sent <= 0)
+            {
+                cerr << "VZE: Disconnected." << endl;
+                error_ = true;
+                return;
+            }
+            if(len_sent >= line.length())
+                break;
+            buf = buf.substr(len_sent);
+        }
+    }
+    void Close()
+    {
+        close(socket_);
+    }
+};
+
+static LogWriter *g_writer_;
 void LogWriteThreadMain()
 {
-	const char *fn_env = getenv("VIZEXEC_LOGFILE");
-	if(!fn_env || strlen(fn_env) == 0)
+	string fn_env;
+    if(getenv("VIZEXEC_LOGFILE"))
+        fn_env = getenv("VIZEXEC_LOGFILE");
+	if(fn_env.length() == 0)
 	{
 		fn_env = "vizexec.log";
 	}
 
-	ofstream strm(fn_env);
-	if(strm.bad() || strm.fail())
+    if(fn_env.substr(0, 4) == string("tcp:"))
+    {
+        vector<string> v;
+        algorithm::split(v, fn_env, is_any_of(":"));
+        g_writer_ = new SocketLogWriter(v[1], lexical_cast<int>(v[2]));
+    }
+    else
+    {
+        g_writer_ = new FileLogWriter(fn_env);
+    }
+	if(g_writer_->IsError())
 	{
 		perror("VizEXEC: Log file open error");
 		abort();
@@ -351,6 +495,7 @@ void LogWriteThreadMain()
         
         if(buf->LogFlag <= 0xFF)
         {
+            stringstream strm;            
             strm << buf->LogType << " " << buf->ThreadID;
             if((buf->LogFlag & LF_NOTIME) == 0)
                 strm << " " << buf->Time;
@@ -361,6 +506,7 @@ void LogWriteThreadMain()
             if(buf->LogFlag & LF_STRDATA)
                 strm << " \"" << buf->StrData1 << "\"";
             strm << endl;
+            g_writer_->Write(strm.str());
             continue;
         }
         
@@ -373,6 +519,7 @@ void LogWriteThreadMain()
 		}
 	}
 	cout << "VizEXEC: Logger Shutdown" << endl;
+    g_writer_->Close();
 	mutex::scoped_lock lk(gLogWriteThreadMutex);
 	delete gLogWriteThread;
 	gLogWriteThread = NULL;

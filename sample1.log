@@ -22,6 +22,7 @@ RCV 0 0 message2
 RET 0 4 WaitForAck
 CAL 0 4 ShowResult
 CAL 1 0 WaitForMessage
+TRM 1 0 
 EVT 0 0 DrawEvent
 RET 0 4 ShowResult
-
+TRM 0 0 

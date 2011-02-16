@@ -106,9 +106,10 @@ int main()
     VZE_START
     VZE_THREADNAME("MainThread")
     VZE_FUNC
+    VZE_INFO("this is additional information.")
     CreateThread();
     SendMessage("testmessage");
     const char *result = WaitForAck();
     ShowResult(result);
-
+    VZE_TERMINATE
 }

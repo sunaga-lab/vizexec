@@ -49,6 +49,14 @@
 #	define VZE_EVENT(str)		\
 		vizexec::WriteEvent(str);
 
+/// Marker of information
+#	define VZE_INFO(str)		\
+		vizexec::WriteInfo(str);
+
+/// Marker of thread termination
+#	define VZE_TERMINATE		\
+		vizexec::WriteTerminate();
+
 /// Marker of thread name
 #	define VZE_THREADNAME(name)		\
 		vizexec::SetCurrentThreadName(name);
@@ -63,6 +71,8 @@
 #	define VZE_RECV2(p1,p2)
 #	define VZE_SEND2(p1,p2)
 #   define VZE_EVENT(str)
+#   define VZE_INFO(str)
+#   define VZE_TERMINATE(str)
 #   define VZE_THREADNAME(name)
 #endif
 
@@ -113,6 +123,8 @@ void WriteSend(const void *p1, const void *p2 = NULL);
 void WriteComment(const string &comment);
 void WriteEvent(const string &comment);
 void WritePhase(const char *phase_name);
+void WriteInfo(const string &info);
+void WriteTerminate();
 
 }
 

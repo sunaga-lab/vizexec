@@ -10,6 +10,8 @@ gAckBuf = None
 #------------------------------------------------------------------------------
 # Functions for ProcessThread
 #------------------------------------------------------------------------------
+vze.set_trace()
+
 @vze.func
 def WaitForMessage():
     global gMessageBuf
@@ -36,6 +38,8 @@ def SendAck(msg):
 
 @vze.func_custom("ThreadMain")
 def process_thread():
+    vze.set_trace()
+
     vze.thread_name("ProcessThread")
     while True:
         msg = WaitForMessage()

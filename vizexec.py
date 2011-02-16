@@ -13,21 +13,27 @@ try:
     import gtk
     import gtk.glade
     import cairo
+    import pango
     import time
 except:
     sys.exit(1)
 
-import figure_data
 import threading
 import gobject
 
-from sequence_data_compiler_realtime import *
+from seqdata import SequenceData
+from vizexec_server import *
+
+
+WINDOW_TITLE = "VizEXEC"
 
 class VizexecGUI:
     def __init__(self):
-        self.compiler = None
-        self.figure = None
+        self.seqdata = None
+        self.current_thread_group_id_max = 0
         self.UpdateInterval = 10
+        self.seqdata_lock = threading.RLock()
+
         self.builder = gtk.Builder()
         self.builder.add_from_file("data/vizexec_ui.glade")
         self.builder.connect_signals(self)
@@ -37,6 +43,11 @@ class VizexecGUI:
         self.import_control("drawing_scroll")
         self.import_control("drawing_area")
         self.import_control("FileChooserDialog")
+        self.import_control("DlgSaveFile")
+        self.import_control("TbfInfo")
+        self.import_control("TvwInfo")
+        self.import_control("DlgRunServer")
+        self.import_control("EntPortNum")
         self.window.show()
         
         self.hadjust = gtk.Adjustment()
@@ -52,8 +63,10 @@ class VizexecGUI:
         self.back_buffer = None
         self.update_back_buffer()
 
-        self.figure = figure_data.FigureData()
-        self.figure_lock = threading.RLock()
+
+        self.EntPortNum.set_text("5112")
+
+        self.new_data()
         self.fit_figure_size()
         self.updated = False
         gobject.timeout_add(self.UpdateInterval, self.update_timeout)
@@ -62,12 +75,20 @@ class VizexecGUI:
         flt.set_name("ログファイル")
         flt.add_pattern("*.log")
         self.FileChooserDialog.add_filter(flt)
+        self.DlgSaveFile.add_filter(flt)
 
         flt = gtk.FileFilter()
         flt.set_name("すべてのファイル")
         flt.add_pattern("*")
         self.FileChooserDialog.add_filter(flt)
+        self.DlgSaveFile.add_filter(flt)
+        
+        pangoFont = pango.FontDescription("monospace 9")
+        self.TvwInfo.modify_font(pangoFont)
 
+    def new_thread_group_id(self):
+        self.current_thread_group_id_max += 1
+        return "g" + str(self.current_thread_group_id_max)
 
     def update_back_buffer(self):
         alloc = self.drawing_area.get_allocation()
@@ -79,21 +100,17 @@ class VizexecGUI:
 
         self.back_buffer = cairo.ImageSurface(cairo.FORMAT_RGB24, alloc.width, alloc.height)
         
-
-
-    def set_figure(self, fig):
-        self.figure = fig
-        self.fit_figure_size()
+        
 
     def fit_figure_size(self):
         is_max = self.vadjust.get_value() >= (self.vadjust.get_upper() - self.vadjust.get_page_size() - 32)
         
         alloc = self.drawing_area.get_allocation()
-        if self.figure.get_width() > alloc.width:
-            self.hadjust.set_upper(self.figure.get_width() + 60)
+        if self.seqdata.get_width() > alloc.width:
+            self.hadjust.set_upper(self.seqdata.get_width() + 60)
             self.hadjust.set_page_size(alloc.width)
-        if self.figure.get_height() > alloc.height:
-            self.vadjust.set_upper(self.figure.get_height() + 60)
+        if self.seqdata.get_height() > alloc.height:
+            self.vadjust.set_upper(self.seqdata.get_height() + 60)
             self.vadjust.set_page_size(alloc.height)
 
         if is_max:
@@ -131,42 +148,40 @@ class VizexecGUI:
             self.updated = False
         gobject.timeout_add(self.UpdateInterval, self.update_timeout)
 
-    def redraw(self):
-        self.figure_lock.acquire()
-        self.update_back_buffer()
-        self.fit_figure_size()
-        offset_x = self.hadjust.get_value()
-        offset_y = self.vadjust.get_value()
+    def redraw(self, check_first = False):
+        with self.seqdata_lock:
+            self.update_back_buffer()
+            self.fit_figure_size()
+            offset_x = self.hadjust.get_value()
+            offset_y = self.vadjust.get_value()
 
 
-        alloc = self.drawing_area.get_allocation()
-        w,h = alloc.width, alloc.height
+            alloc = self.drawing_area.get_allocation()
+            w,h = alloc.width, alloc.height
 
-        ctx = cairo.Context(self.back_buffer)
-        drawarea_ctx = self.drawing_area.window.cairo_create()
-        # ctx = self.drawing_area.window.cairo_create()
-        ctx.set_source_rgb(1.0,1.0,1.0)
-        ctx.rectangle(0,0, w,h)
-        ctx.fill()
-        
-        for node in self.figure.get_node_in_rect(offset_x, offset_y, offset_x+w, offset_y+h):
-            node.draw(ctx, offset_x, offset_y)
-        
-        drawarea_ctx.set_source_surface(self.back_buffer, 0, 0)
-        drawarea_ctx.paint()
-        self.figure_lock.release()
+            ctx = cairo.Context(self.back_buffer)
+            drawarea_ctx = self.drawing_area.window.cairo_create()
+            # ctx = self.drawing_area.window.cairo_create()
+            ctx.set_source_rgb(1.0,1.0,1.0)
+            ctx.rectangle(0,0, w,h)
+            ctx.fill()
+            
+            if check_first:
+                self.seqdata.draw(ctx, offset_x, offset_y, w, h, True)
+            self.seqdata.draw(ctx, offset_x, offset_y, w, h)
+            
+            drawarea_ctx.set_source_surface(self.back_buffer, 0, 0)
+            drawarea_ctx.paint()
 
 
-    def new_figure(self):
-        fig = figure_data.FigureData()
-        self.set_figure(fig)
-        self.compiler = SequenceCompiler()
-        # compiler.set_data(sample_data)
-        self.compiler.fig = self.figure
+    def new_data(self):
+        self.seqdata = SequenceData()
+        self.redraw()
 
     def open_new(self, filename):
-        self.new_figure()
+        self.new_data()
         self.open_append(filename)
+        self.window.set_title(WINDOW_TITLE + " - File " + filename)
 
     def open_append(self, filename):
         read_thread = ReadThread(filename, self)
@@ -204,32 +219,50 @@ class VizexecGUI:
         self.AboutDialog.run()
         self.AboutDialog.hide()
 
+    def drawing_area_button_press_event_cb(self, e, data):
+        self.seqdata.selected_object = None
+        self.seqdata.selected_pos = (data.x,data.y)
+        self.redraw(True)
+        self.seqdata.selected_pos = None
+        
+        if self.seqdata.selected_object:
+            obj = self.seqdata.selected_object
+            if hasattr(obj, "get_info_text"):
+                self.TbfInfo.set_text(obj.get_info_text())
+            else:
+                self.TbfInfo.set_text(str(obj))
 
-class ReadThread(threading.Thread):
-    def __init__(self, fn, window):
-        threading.Thread.__init__(self)
-        self.fn = fn
-        self.window = window
-        self.compiler = window.compiler
-        self.setDaemon(True)
-
-    def run(self):
-        file = open(self.fn, 'r')
-        while True:
-            line = file.readline()
-            if not line:
-                break
-            self.window.figure_lock.acquire()
-            self.compiler.add_data_line(line)
-            self.compiler.ybase_increased()
-            self.window.updated = True
-            self.window.figure_lock.release()
-
+    def open_server(self, portnum):
+        server_thread = TCPServerThread(portnum, self)
+        server_thread.start()
+        
+        self.window.set_title(WINDOW_TITLE + " - Server *:" + str(portnum))
+        
+    
+    def MniRunServer_activate_cb(self, e):
+        resp = self.DlgRunServer.run()
+        self.DlgRunServer.hide()
+        if resp == 1:
+            self.new_data()
+            portnum = int(self.EntPortNum.get_text())
+            self.open_server(portnum)
+        else:
+            return
+    
+    def MniSaveAs_activate_cb(self, e):
+        resp = self.DlgSaveFile.run()
+        self.DlgSaveFile.hide()
+        if resp == 1:
+            with self.seqdata_lock:
+                self.seqdata.save_log_to(self.DlgSaveFile.get_filename())
 
 if __name__ == "__main__":
     mainwindow = VizexecGUI()
     if len(sys.argv) >= 2:
-        mainwindow.open_new(sys.argv[1])
+        if sys.argv[1] == "-s":
+            mainwindow.open_server(int(sys.argv[2]))
+        else:
+            mainwindow.open_new(sys.argv[1])
     gtk.main()
 
 
