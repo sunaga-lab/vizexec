@@ -434,6 +434,8 @@ class Lifeline:
         )
 
     def put_return(self):
+        if not self.current_stack:
+            return None
         frm = self.current_stack[-1]
         self.stack_pop()
         entity = self.new_entity("return")

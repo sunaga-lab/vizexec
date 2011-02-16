@@ -24,6 +24,9 @@ import gobject
 from seqdata import SequenceData
 from vizexec_server import *
 
+
+WINDOW_TITLE = "VizEXEC"
+
 class VizexecGUI:
     def __init__(self):
         self.seqdata = None
@@ -178,6 +181,7 @@ class VizexecGUI:
     def open_new(self, filename):
         self.new_data()
         self.open_append(filename)
+        self.window.set_title(WINDOW_TITLE + " - File " + filename)
 
     def open_append(self, filename):
         read_thread = ReadThread(filename, self)
@@ -231,6 +235,9 @@ class VizexecGUI:
     def open_server(self, portnum):
         server_thread = TCPServerThread(portnum, self)
         server_thread.start()
+        
+        self.window.set_title(WINDOW_TITLE + " - Server *:" + str(portnum))
+        
     
     def MniRunServer_activate_cb(self, e):
         resp = self.DlgRunServer.run()

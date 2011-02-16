@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+import sys
 import threading
 import socket
 
@@ -12,6 +13,9 @@ def build_id(params):
 
 write_log_raw = None
 flash_log_raw = None
+
+tracer_data = threading.local()
+
 
 def DoNothing(*prms):
     pass
@@ -63,22 +67,34 @@ def write_log_notime(logtype, *params):
     write_log_raw(line+"\n")
     flush_log_raw()
 
+def call(func_name):
+    """ Marker for call """
+    if write_log:
+        write_log("CAL", func_name)
+
+def ret():
+    """ Marker for return """
+    if write_log:
+        write_log("RET")
+
 def func(f):
-    """ Marker for functions """
+    """ Decorator for marking functions """
     return func_custom(f.func_name)(f)
     
 
 def func_custom(fname):
-    """ Marker for functions with custom name """
+    """ Decorator for marking functions with custom name """
     def decorator(f):
         def decorated(*idp, **kwp):
-            try:
-                if write_log:
-                    write_log("CAL", fname)
+            global tracer_data
+            if hasattr(tracer_data, 'enabled') and tracer_data.enabled:
+                try:
+                    call(fname)
+                    return f(*idp, **kwp)
+                finally:
+                    ret()
+            else:
                 return f(*idp, **kwp)
-            finally:
-                if write_log:
-                    write_log("RET", fname)
         return decorated
     return decorator
 
@@ -107,4 +123,16 @@ def phase(pname):
     """ Phase change marker """
     write_log("PHS", pname)
 
+
+
+def __trace_func(frame, event, arg):
+    if event == "call":
+        call(frame.f_code.co_name)
+    if event == "return":
+        ret()
+    return __trace_func
+
+def set_trace():
+    tracer_data.enabled = True
+    sys.settrace(__trace_func)
 
