@@ -487,6 +487,20 @@ void WriteEvent(const string &eventstr)
 }
 
 
+void replace_str(string &str, const string &from, const string &replto)
+{
+	string::size_type pos;
+	for(pos = str.find(from); pos != string::npos; pos = str.find(from, replto.length() + pos))
+		str.replace(pos, from.length(), replto);
+}
+
+string &escape_string(string &str)
+{
+    replace_str(str, "\\", "\\\\");
+    replace_str(str, "\"", "\\\"");
+    replace_str(str, "\n", "\\n");
+	return str;
+}
 
 void LogWriteThreadMain()
 {
@@ -507,7 +521,7 @@ void LogWriteThreadMain()
             if(buf->LogFlag & LF_HASHEDVAL)
                 strm << " " << ios::hex << buf->HashedValue;
             if(buf->LogFlag & LF_STRDATA)
-                strm << " \"" << buf->StrData1 << "\"";
+                strm << " \"" << escape_string(buf->StrData1) << "\"";
             strm << endl;
             g_log_writer->Write(strm.str());
             continue;

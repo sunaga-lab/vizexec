@@ -46,6 +46,7 @@ class TCPLogHandler(SocketServer.BaseRequestHandler):
                 continue
             line = self.buf[:idx]
             self.buf = self.buf[idx + 1:]
+            print "Line is :" , line
             with self.window.seqdata_lock:
                 self.window.seqdata.add_data_line(line, self.thread_group)
                 self.window.updated = True
