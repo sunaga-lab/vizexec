@@ -103,7 +103,7 @@ class Communication:
         return self.send_entity.get_info_text() + "\n\n--- TO ---\n\n" + self.recv_entity.get_info_text()
 
 
-BAR_WIDTH = 8
+BAR_WIDTH = 5
 
 SELECTED_BGCOLOR = '#0000FF'
 SELECTED_ALPHA = 0.2
@@ -116,7 +116,7 @@ DEFAULT_PARAMS = {
     'textalign': 'center',
     'text': None,
     'linecolor': None,
-    'linewidth': 2.0,
+    'linewidth': 1.0,
     'dash': [],
     'associated': None,
     'alpha': None,
@@ -490,6 +490,7 @@ class Lifeline:
             text = self.get_display_name(),
             textalign = 'center',
             linecolor = '#000000',
+            bgcolor = '#FFFEDD',
             pos = (self.bar_xpos(entity.stack, "r") - 40 - self.x, entity.ypos - self.y),
             size = (120, 30),
             associated = self,
@@ -534,6 +535,7 @@ class SequenceData:
     def __init__(self):
         self.lifelines = {}
         self.used_lane = set([])
+        self.max_lane = 0
         self.current_ypos = 50
         self.synchronized = True
         self.open_sending = {}
@@ -547,6 +549,7 @@ class SequenceData:
         for i in range(1024):
             if i not in self.used_lane:
                 self.used_lane.add(i)
+                self.max_lane = max(self.max_lane, i)
                 return i
         raise "Too many lanes"
 
@@ -646,7 +649,7 @@ class SequenceData:
             self.add_data_line(line)
 
     def get_width(self):
-        return 120
+        return self.max_lane * 150 + 300
 
     def get_height(self):
         return self.current_ypos + 10

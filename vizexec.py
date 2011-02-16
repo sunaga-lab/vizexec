@@ -33,6 +33,7 @@ class VizexecGUI:
         self.current_thread_group_id_max = 0
         self.UpdateInterval = 10
         self.seqdata_lock = threading.RLock()
+        self.mouse_dragging = False
 
         self.builder = gtk.Builder()
         self.builder.add_from_file("data/vizexec_ui.glade")
@@ -220,6 +221,11 @@ class VizexecGUI:
         self.AboutDialog.hide()
 
     def drawing_area_button_press_event_cb(self, e, data):
+        self.mouse_dragging = True
+        self.mouse_dragging_start = (
+            self.hadjust.get_value() + data.x,
+            self.vadjust.get_value() + data.y
+        )
         self.seqdata.selected_object = None
         self.seqdata.selected_pos = (data.x,data.y)
         self.redraw(True)
@@ -231,6 +237,17 @@ class VizexecGUI:
                 self.TbfInfo.set_text(obj.get_info_text())
             else:
                 self.TbfInfo.set_text(str(obj))
+
+    def drawing_area_button_release_event_cb(self, e, data):
+        if self.mouse_dragging:
+            self.hadjust.set_value(self.mouse_dragging_start[0] - data.x)
+            self.vadjust.set_value(self.mouse_dragging_start[1] - data.y)
+            self.mouse_dragging = False
+
+    def drawing_area_motion_notify_event_cb(self, e, data):
+        if self.mouse_dragging:
+            self.hadjust.set_value(self.mouse_dragging_start[0] - data.x)
+            self.vadjust.set_value(self.mouse_dragging_start[1] - data.y)
 
     def open_server(self, portnum):
         server_thread = TCPServerThread(portnum, self)
