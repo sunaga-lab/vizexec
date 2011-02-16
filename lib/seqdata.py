@@ -446,6 +446,7 @@ class Lifeline:
     def put_phase(self, phase_name):
         entity = self.new_entity("phase")
         entity.func_name = phase_name
+        entity.name = phase_name
         return entity
 
     def draw_phase(self, entity):
@@ -488,13 +489,15 @@ class Lifeline:
             textalign = 'center',
             linecolor = '#000000',
             pos = (self.bar_xpos(entity.stack, "r") - 40 - self.x, entity.ypos - self.y),
-            size = (120, 30)
+            size = (120, 30),
+            associated = self,
         )
 
 
     def put_event(self, label):
         entity = self.new_entity("event", 20)
         entity.label = label
+        entity.name = label
         return entity
 
     def draw_event(self, entity):
@@ -631,9 +634,10 @@ class SequenceData:
     def terminated_lifeline_group(self, group):
         for key in self.lifelines:
             if key.startswith(group):
-                self.lifelines[key].put_terminate()
-                self.used_lane.remove(self.lifelines[key].lane)
-                self.keep_raw_log(arr = ['TRM', key])
+                if not self.lifelines[key].terminated:
+                    self.lifelines[key].put_terminate()
+                    self.used_lane.remove(self.lifelines[key].lane)
+                    self.keep_raw_log(arr = ['TRM', key])
 
     def read_file(self, filename):
         for line in open(filename, 'r'):
