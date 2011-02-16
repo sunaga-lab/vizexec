@@ -75,6 +75,7 @@ class LifelineEntity(YPosComparable):
     def shift_ypos(self, new_ypos):
         self.lifeline.shift_ypos(self.ypos, new_ypos)
 
+
 class StackFrame:
     def __init__(self, func_name):
         self.func_name = func_name
@@ -157,6 +158,12 @@ class Lifeline:
         self.terminated = False
         self.lane = 0
 
+    def get_info_text(self):
+        return "[Lifeline: {name}]\nid = {lid}".format(
+            name = self.lifeline_name,
+            lid = self.lifeline_id
+        )
+
     def get_current_ypos(self):
         if self.seqdata.synchronized:
             self.__current_ypos = self.seqdata.current_ypos
@@ -177,8 +184,6 @@ class Lifeline:
         entity = LifelineEntity(self, self.get_current_ypos(), event_type, self.current_stack)
         self.entity_list.append(entity)
         self.set_current_ypos_least(self.get_current_ypos() + add_ypos)
-
-
         return entity
 
     def stack_push(self, name):
@@ -338,8 +343,7 @@ class Lifeline:
         for i in range(idx, len(self.entity_list)):
             self.entity_list[i].ypos += new_ypos - ypos
             biggest_ypos = max(self.entity_list[i].ypos, biggest_ypos)
-        
-        # self.set_current_ypos_least(biggest_ypos)
+
 
     def draw(self, ctx, offset_x, offset_y, w, h, only_check = False):
         self.ctx = ctx
@@ -373,6 +377,18 @@ class Lifeline:
             idx += 1
         self.draw_all_return()
 
+        underlabel_ypos = min(self.y + h - 40, self.end_ypos if self.end_ypos else self.y + h - 40)
+        self.draw_box(
+            text = self.get_display_name(),
+            textalign = 'center',
+            linecolor = None,
+            bgcolor = '#FFFFFF',
+            alpha = 0.8,
+            pos = (self.bar_xpos([], "r") - 30 - self.x, underlabel_ypos - self.y),
+            size = (120, 20),
+            associated = self,
+        )
+        
 
     def draw_comm(self, comm):
         if not comm.is_complete():
@@ -589,6 +605,18 @@ class SequenceData:
         for rlog in self.raw_log:
             f.write(rlog + "\n")
         f.close()
+    
+    def sync_ypos(self):
+        if self.synchronized:
+            return
+        now_ypos = self.current_ypos
+        for key, ll in self.lifelines.items():
+            now_ypos = max(now_ypos, ll.get_current_ypos())
+
+        for key, ll in self.lifelines.items():
+            ll.set_current_ypos_least(now_ypos)
+        self.current_ypos = now_ypos
+        print "Sync:", self.current_ypos    
             
     def add_data_line(self, line, th_grp = "d"):
         cmd = shlex.split(line.strip())
@@ -622,8 +650,7 @@ class SequenceData:
             if cmd[3] in self.open_receiving:
                 comm = self.open_receiving[cmd[3]]
                 del self.open_receiving[cmd[3]]
-                
-                comm.recv_entity.shift_ypos(lifeline.current_ypos + 40)
+                comm.recv_entity.shift_ypos(lifeline.get_current_ypos() + 40)
             else:
                 comm = Communication()
                 self.open_sending[cmd[3]] = comm
