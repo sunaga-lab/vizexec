@@ -65,16 +65,19 @@ class LifelineEntity(YPosComparable):
         self.info.append(line.rstrip())
 
     def get_info_text(self):
-        return "[{t}{name}]\n{info}".format(
+        return "[{t}{name}]\ntpos: {tpos}\n{info}".format(
             t = self.event_type,
+            tpos = self.ypos,
             name = (": " + self.get_name()) if self.get_name() else "",
             info = '\n'.join(self.info)
         )
+        
+    def shift_ypos(self, new_ypos):
+        self.lifeline.shift_ypos(self.ypos, new_ypos)
 
 class StackFrame:
-    def __init__(self, func_name, start_ypos):
+    def __init__(self, func_name):
         self.func_name = func_name
-        self.start_ypos = start_ypos
         self.call_entity = None
         self.return_entity = None
 
@@ -148,7 +151,7 @@ class Lifeline:
         self.entity_list = []
         self.start_ypos = start_ypos
         self.end_ypos = None
-        self.current_ypos = start_ypos
+        self.__current_ypos = start_ypos
         self.current_stack = []
         self.lifeline_name = str(lifeline_id)
         self.terminated = False
@@ -156,8 +159,13 @@ class Lifeline:
 
     def get_current_ypos(self):
         if self.seqdata.synchronized:
-            self.current_ypos = self.seqdata.current_ypos
-        return self.current_ypos
+            self.__current_ypos = self.seqdata.current_ypos
+        return self.__current_ypos
+
+    def set_current_ypos_least(self, ypos):
+        self.__current_ypos = max(self.__current_ypos, ypos)
+        if self.seqdata.synchronized:
+            self.seqdata.current_ypos = self.__current_ypos
 
     def get_id(self):
         return self.lifeline_id
@@ -166,15 +174,10 @@ class Lifeline:
         return self.lifeline_name
 
     def new_entity(self, event_type, add_ypos = 20):
-        if self.seqdata.synchronized:
-            self.current_ypos = self.seqdata.current_ypos
-
-        entity = LifelineEntity(self, self.current_ypos, event_type, self.current_stack)
+        entity = LifelineEntity(self, self.get_current_ypos(), event_type, self.current_stack)
         self.entity_list.append(entity)
-        self.current_ypos += add_ypos
+        self.set_current_ypos_least(self.get_current_ypos() + add_ypos)
 
-        if self.seqdata.synchronized:
-            self.seqdata.current_ypos = self.current_ypos
 
         return entity
 
@@ -182,7 +185,7 @@ class Lifeline:
         if self.seqdata.synchronized:
             self.current_ypos = self.seqdata.current_ypos
         self.current_stack = self.current_stack[:]
-        frm = StackFrame(name, self.current_ypos)
+        frm = StackFrame(name)
         self.current_stack.append(frm)
         return frm
 
@@ -328,6 +331,15 @@ class Lifeline:
             associated = associated,
         )
 
+    def shift_ypos(self, ypos, new_ypos):
+        idx = bisect.bisect_left(self.entity_list, YPosComparable(ypos))
+        
+        biggest_ypos = 0
+        for i in range(idx, len(self.entity_list)):
+            self.entity_list[i].ypos += new_ypos - ypos
+            biggest_ypos = max(self.entity_list[i].ypos, biggest_ypos)
+        
+        # self.set_current_ypos_least(biggest_ypos)
 
     def draw(self, ctx, offset_x, offset_y, w, h, only_check = False):
         self.ctx = ctx
@@ -610,6 +622,8 @@ class SequenceData:
             if cmd[3] in self.open_receiving:
                 comm = self.open_receiving[cmd[3]]
                 del self.open_receiving[cmd[3]]
+                
+                comm.recv_entity.shift_ypos(lifeline.current_ypos + 40)
             else:
                 comm = Communication()
                 self.open_sending[cmd[3]] = comm
