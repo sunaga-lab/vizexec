@@ -13,6 +13,21 @@ def StrToColor(s):
     return (col.red / 65535.0, col.green / 65535.0, col.blue / 65535.0)
 
 
+def len_point_to_line2(px, py, x0, y0, x1, y1):
+    dx = x1 - x0
+    dy = y1 - y0
+    a = dx*dx + dy*dy
+    if a == 0.0:
+        return (x0-px)*(x0-px) + (y0-py)*(y0-py)
+    b = dx*(x0-px) + dy*(y0-py)
+    t =  -(b/a)
+    t = max(0.0, t)
+    t = min(1.0, t)
+    x = t*dx + x0
+    y = t*dy + y0
+    return (x-px)*(x-px) + (y-py)*(y-py)
+
+
 class YPosComparable:
     def __init__(self, ypos):
         self.ypos = ypos
@@ -38,7 +53,12 @@ class LifelineEntity(YPosComparable):
         self.event_type = event_type
         self.stack = stack
         self.name = ""
+        
+    def get_name(self):
+        return self.name
 
+    def __str__(self):
+        return self.get_name()
 
 class StackFrame:
     def __init__(self, func_name, start_ypos):
@@ -65,24 +85,27 @@ class Communication:
             dst = str(self.recv_entity),
         )
 
+    def get_name(self):
+        return self.__str__()
 
-FONTNAME = "Serif"
-FONTSIZE = 12
 BAR_WIDTH = 8
-FONTCOLOR = "#0000FF"
-LINEWIDTH = 1.0
-LINECOLOR = "#000000"
+
+SELECTED_BGCOLOR = '#0000FF'
+SELECTED_ALPHA = 0.2
 
 DEFAULT_PARAMS = {
     'bgcolor': None,
     'fontname': 'Serif',
+    'fontsize': 10,
     'fontcolor': '#000000',
     'textalign': 'center',
     'text': None,
     'linecolor': None,
     'linewidth': 2.0,
     'dash': [],
-    'associated': None
+    'associated': None,
+    'alpha': None,
+    'linealpha': None,
 }
 
 class ParamClass:
@@ -109,6 +132,7 @@ class Lifeline:
         self.lifeline_id = lifeline_id
         self.entity_list = []
         self.start_ypos = start_ypos
+        self.end_ypos = None
         self.current_ypos = start_ypos
         self.current_stack = []
         self.lifeline_name = str(lifeline_id)
@@ -156,17 +180,42 @@ class Lifeline:
 
     def parse_line_flags(self, p):
         ctx = self.ctx
-        ctx.set_source_rgb(*StrToColor(p.linecolor))
+        if p.linealpha is not None:
+            ctx.set_source_rgba(*StrToColor(p.linecolor) + (p.linealpha, ))
+        else:
+            ctx.set_source_rgb(*StrToColor(p.linecolor))
+
         ctx.set_line_width(p.linewidth)
         if p.dash:
             ctx.set_dash(p.dash, 0)
         else:
             ctx.set_dash([], 0)
 
+
+    def parse_fill_flags(self, p):
+        ctx = self.ctx
+        if p.alpha is not None:
+            ctx.set_source_rgba(*StrToColor(p.bgcolor) + (p.alpha, ))
+        else:
+            ctx.set_source_rgb(*StrToColor(p.bgcolor))
+
     def draw_line(self, **prms):
-        if self.only_check:
-            return
         p = ParamClass(prms)
+        if self.only_check:
+            if len_point_to_line2(*(self.seqdata.selected_pos + p.src + p.dest)) < 16.0:
+                self.seqdata.selected_object = p.associated
+            return
+        
+        if p.associated and self.seqdata.selected_object == p.associated:
+            self.draw_line(
+                associated = None,
+                src = p.src,
+                dest = p.dest,
+                linewidth = 8.0,
+                linealpha = SELECTED_ALPHA,
+                linecolor = SELECTED_BGCOLOR,
+            )
+            
         self.ctx.move_to(p.src[0], p.src[1])
         self.ctx.line_to(p.dest[0], p.dest[1])
         self.parse_line_flags(p)
@@ -181,21 +230,20 @@ class Lifeline:
         xs = p.size[0]
         ys = p.size[1]
         
-        if ( self.seqdata.selected_pos and
-            x0 < self.seqdata.selected_pos[0] and y0 < self.seqdata.selected_pos[1] and
-            self.seqdata.selected_pos[0] < x0+xs and self.seqdata.selected_pos[1] < y0+ys):
-                selected = True
-                self.seqdata.selected_object = p.associated
-
         if self.only_check:
+            if ( self.seqdata.selected_pos and
+                x0 < self.seqdata.selected_pos[0] and y0 < self.seqdata.selected_pos[1] and
+                self.seqdata.selected_pos[0] < x0+xs and self.seqdata.selected_pos[1] < y0+ys):
+                    self.seqdata.selected_object = p.associated
             return
-            
+                
         if p.associated and self.seqdata.selected_object == p.associated:
-            p.bgcolor = '#EEEEFF'
+            p.bgcolor = SELECTED_BGCOLOR
+            p.alpha = SELECTED_ALPHA
 
         if p.bgcolor is not None:
             ctx.rectangle(x0,y0,xs,ys)
-            ctx.set_source_rgb(*StrToColor(p.bgcolor))
+            self.parse_fill_flags(p)
             ctx.fill()
 
         if p.linecolor is not None:
@@ -221,7 +269,7 @@ class Lifeline:
             ctx.show_text(p.text)
 
 
-    def draw_mark(self, stk, ypos, label):
+    def draw_mark(self, stk, ypos, label, associated):
         x = self.bar_xpos(stk, "c") - self.x
         y = ypos - self.y + 10
         sz = 5
@@ -243,6 +291,7 @@ class Lifeline:
         self.draw_line(
             src = (x1, y0),
             dest = (x0, y1),
+            associated = associated,
             **common_params
         )
 
@@ -251,8 +300,8 @@ class Lifeline:
             size = (100,20),
             text = label,
             textalign = "left",
-            fontsize = 13,
             linecolor = None,
+            associated = associated,
         )
 
 
@@ -306,6 +355,7 @@ class Lifeline:
             linewidth = 1.0,
             linecolor = '#0000FF',
             dash = [6,2],
+            associated = comm,
         )
 
     def draw_all_return(self):
@@ -325,8 +375,6 @@ class Lifeline:
             text = entity.func_name,
             textalign = 'left',
             linecolor = None,
-            fontsize = FONTSIZE,
-            fontfamily = FONTNAME,
             bgcolor = None,
             pos = (self.bar_xpos(entity.stack, "r") + 2 - self.x, entity.ypos - self.y),
             size = (100, 20),
@@ -398,8 +446,6 @@ class Lifeline:
             text = self.get_display_name(),
             textalign = 'center',
             linecolor = '#000000',
-            fontsize = FONTSIZE,
-            fontfamily = FONTNAME,
             pos = (self.bar_xpos(entity.stack, "r") - 40 - self.x, entity.ypos - self.y),
             size = (120, 30)
         )
@@ -411,7 +457,23 @@ class Lifeline:
         return entity
 
     def draw_event(self, entity):
-        self.draw_mark(entity.stack, entity.ypos, entity.label)
+        self.draw_mark(entity.stack, entity.ypos, entity.label, entity)
+
+    def put_terminate(self):
+        if self.end_ypos is not None:
+            return        
+        entity = self.new_entity("terminate", 20)
+
+        while self.current_stack:
+            frm = self.current_stack[-1]
+            self.stack_pop()
+            frm.return_entity = entity
+        self.end_ypos = self.current_ypos
+        return entity
+
+
+    def draw_terminate(self, entity):
+        self.draw_mark([0], entity.ypos, "Terminate", None)
 
 
 class SequenceData:
@@ -433,20 +495,30 @@ class SequenceData:
     
     def draw(self, ctx, offset_x, offset_y, w, h, only_check = False):
         for key, lifeline in self.lifelines.items():
+            if lifeline.start_ypos > offset_y + h:
+                return
+            if lifeline.end_ypos and offset_y > lifeline.end_ypos:
+                return
             lifeline.draw(ctx, offset_x - 50, offset_y, w, h, only_check)
 
-    def add_data_line(self, line):
+    def add_data_line(self, line, th_grp = "d"):
         cmd = shlex.split(line.strip())
         if not cmd:
             return
         elif cmd[0] == '#':
-            pass
-        elif cmd[0] == 'CAL':
-            self.get_lifeline(cmd[1]).put_call(cmd[3])
+            return
+        
+        if cmd[1] not in ("", "-"):
+            lifeline = self.get_lifeline(th_grp + "/" + cmd[1])
+        else:
+            lifeline = None
+
+        if cmd[0] == 'CAL':
+            lifeline.put_call(cmd[3])
         elif cmd[0] == 'RET':
-            self.get_lifeline(cmd[1]).put_return()
+            lifeline.put_return()
         elif cmd[0] == 'TNM':
-            self.get_lifeline(cmd[1]).put_thread_name(cmd[2])
+            lifeline.put_thread_name(cmd[2])
         elif cmd[0] == 'SND':
             if cmd[3] in self.open_receiving:
                 comm = self.open_receiving[cmd[3]]
@@ -454,7 +526,7 @@ class SequenceData:
             else:
                 comm = Communication()
                 self.open_sending[cmd[3]] = comm
-            comm.send_entity = self.get_lifeline(cmd[1]).put_send(comm)
+            comm.send_entity = lifeline.put_send(comm)
         elif cmd[0] == 'RCV':
             if cmd[3] in self.open_sending:
                 comm = self.open_sending[cmd[3]]
@@ -462,12 +534,20 @@ class SequenceData:
             else:
                 comm = Communication()
                 self.open_receiving[cmd[3]] = comm
-            comm.recv_entity = self.get_lifeline(cmd[1]).put_recv(comm)
+            comm.recv_entity = lifeline.put_recv(comm)
         elif cmd[0] == 'EVT':
-            self.get_lifeline(cmd[1]).put_event(cmd[3])
-            
+            lifeline.put_event(cmd[3])
+
+        elif cmd[0] == 'TRM':
+            lifeline.put_terminate()
+
         else:
             print "Unknown command: ", cmd[0]
+
+    def terminated_lifeline_group(self, group):
+        for key in self.lifelines:
+            if key.startswith(group):
+                self.lifelines[key].put_terminate()
 
     def read_file(self, filename):
         for line in open(filename, 'r'):

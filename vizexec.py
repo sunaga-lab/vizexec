@@ -22,12 +22,12 @@ import threading
 import gobject
 
 from seqdata import SequenceData
-
+from vizexec_server import *
 
 class VizexecGUI:
     def __init__(self):
         self.seqdata = None
-
+        self.current_thread_group_id_max = 0
         self.UpdateInterval = 10
         self.builder = gtk.Builder()
         self.builder.add_from_file("data/vizexec_ui.glade")
@@ -56,7 +56,7 @@ class VizexecGUI:
         self.update_back_buffer()
 
         self.new_data()
-        self.figure_lock = threading.RLock()
+        self.seqdata_lock = threading.RLock()
         self.fit_figure_size()
         self.updated = False
         gobject.timeout_add(self.UpdateInterval, self.update_timeout)
@@ -74,7 +74,9 @@ class VizexecGUI:
         pangoFont = pango.FontDescription("monospace 9")
         self.TvwInfo.modify_font(pangoFont)
 
-
+    def new_thread_group_id(self):
+        self.current_thread_group_id_max += 1
+        return "g" + str(self.current_thread_group_id_max)
 
     def update_back_buffer(self):
         alloc = self.drawing_area.get_allocation()
@@ -135,30 +137,29 @@ class VizexecGUI:
         gobject.timeout_add(self.UpdateInterval, self.update_timeout)
 
     def redraw(self, check_first = False):
-        self.figure_lock.acquire()
-        self.update_back_buffer()
-        self.fit_figure_size()
-        offset_x = self.hadjust.get_value()
-        offset_y = self.vadjust.get_value()
+        with self.seqdata_lock:
+            self.update_back_buffer()
+            self.fit_figure_size()
+            offset_x = self.hadjust.get_value()
+            offset_y = self.vadjust.get_value()
 
 
-        alloc = self.drawing_area.get_allocation()
-        w,h = alloc.width, alloc.height
+            alloc = self.drawing_area.get_allocation()
+            w,h = alloc.width, alloc.height
 
-        ctx = cairo.Context(self.back_buffer)
-        drawarea_ctx = self.drawing_area.window.cairo_create()
-        # ctx = self.drawing_area.window.cairo_create()
-        ctx.set_source_rgb(1.0,1.0,1.0)
-        ctx.rectangle(0,0, w,h)
-        ctx.fill()
-        
-        if check_first:
-            self.seqdata.draw(ctx, offset_x, offset_y, w, h, True)
-        self.seqdata.draw(ctx, offset_x, offset_y, w, h)
-        
-        drawarea_ctx.set_source_surface(self.back_buffer, 0, 0)
-        drawarea_ctx.paint()
-        self.figure_lock.release()
+            ctx = cairo.Context(self.back_buffer)
+            drawarea_ctx = self.drawing_area.window.cairo_create()
+            # ctx = self.drawing_area.window.cairo_create()
+            ctx.set_source_rgb(1.0,1.0,1.0)
+            ctx.rectangle(0,0, w,h)
+            ctx.fill()
+            
+            if check_first:
+                self.seqdata.draw(ctx, offset_x, offset_y, w, h, True)
+            self.seqdata.draw(ctx, offset_x, offset_y, w, h)
+            
+            drawarea_ctx.set_source_surface(self.back_buffer, 0, 0)
+            drawarea_ctx.paint()
 
 
     def new_data(self):
@@ -212,27 +213,9 @@ class VizexecGUI:
         
         if self.seqdata.selected_object:
             obj = self.seqdata.selected_object
-            self.TbfInfo.set_text("name = " + obj.name)
+            self.TbfInfo.set_text("name = " + obj.get_name())
             
 
-class ReadThread(threading.Thread):
-    def __init__(self, fn, window):
-        threading.Thread.__init__(self)
-        self.fn = fn
-        self.window = window
-        self.seqdata = window.seqdata
-        self.setDaemon(True)
-
-    def run(self):
-        file = open(self.fn, 'r')
-        while True:
-            line = file.readline()
-            if not line:
-                break
-            self.window.figure_lock.acquire()
-            self.seqdata.add_data_line(line)
-            self.window.updated = True
-            self.window.figure_lock.release()
 
 
 if __name__ == "__main__":
