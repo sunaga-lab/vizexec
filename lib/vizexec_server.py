@@ -25,6 +25,7 @@ class ReadThread(threading.Thread):
             with self.window.seqdata_lock:
                 self.seqdata.add_data_line(line, self.thread_group)
                 self.window.updated = True
+        self.seqdata.unblock_all()
         self.seqdata.sync_ypos()
 
 

@@ -157,6 +157,8 @@ class Lifeline:
         self.lifeline_name = str(lifeline_id)
         self.terminated = False
         self.lane = 0
+        self.blocking = False
+        self.blocked_cmds = []
 
     def get_info_text(self):
         return "[Lifeline: {name}]\nid = {lid}".format(
@@ -394,6 +396,12 @@ class Lifeline:
         if not comm.is_complete():
             return
         ctx = self.ctx
+        
+        if comm.send_entity.ypos < comm.recv_entity.ypos:
+            linecolor = '#0000FF'
+        else:
+            linecolor = '#FF0000'
+
         self.draw_line(
             src = (
                     comm.send_entity.lifeline.bar_xpos(comm.send_entity.stack, "c") + 2 - self.x, 
@@ -404,7 +412,7 @@ class Lifeline:
                     comm.recv_entity.ypos - self.y
                 ),
             linewidth = 1.0,
-            linecolor = '#0000FF',
+            linecolor = linecolor,
             dash = [6,2],
             associated = comm,
         )
@@ -559,9 +567,29 @@ class Lifeline:
         last_entity.add_info(infoline)
 
 
+    def unblock(self):
+        print "[!Unblock]"
+        if not self.blocking:
+            return
+        self.blocking = False
+        runcmd = self.blocked_cmds
+        self.blocked_cmds = []
+        while runcmd:
+            cmd = runcmd.pop(0)
+            self.add_data_line(cmd)
+            if self.blocking:
+                self.blocked_cmds.extend(runcmd)
+                break
 
 
     def add_data_line(self, cmd):
+        if self.blocking:
+            print "[Blocked]", cmd
+            self.blocked_cmds.append(cmd)
+            if len(self.blocked_cmds) > 10:
+                self.unblock()
+            return
+
         if cmd[0] == 'CAL' and len(cmd) >= 4:
             self.put_call(cmd[3])
         elif cmd[0] == 'PHS' and len(cmd) >= 4:
@@ -574,7 +602,7 @@ class Lifeline:
             if cmd[3] in self.seqdata.open_receiving:
                 comm = self.seqdata.open_receiving[cmd[3]]
                 del self.seqdata.open_receiving[cmd[3]]
-                # comm.recv_entity.shift_ypos(self.get_current_ypos() + 40)
+                comm.recv_entity.unblock()
             else:
                 comm = Communication()
                 self.seqdata.open_sending[cmd[3]] = comm
@@ -584,8 +612,12 @@ class Lifeline:
                 comm = self.seqdata.open_sending[cmd[3]]
                 del self.seqdata.open_sending[cmd[3]]
             else:
-                comm = Communication()
-                self.seqdata.open_receiving[cmd[3]] = comm
+                self.blocking = True
+                self.blocked_cmds.append(cmd)
+                print "[!Blocked] by", cmd
+                return
+                #comm = Communication()
+                #self.seqdata.open_receiving[cmd[3]] = comm
             comm.recv_entity = self.put_recv(comm)
         elif cmd[0] == 'EVT' and len(cmd) >= 4:
             self.put_event(cmd[3])
@@ -640,6 +672,10 @@ class SequenceData:
                 continue
             lifeline.draw(ctx, offset_x - 50, offset_y, w, h, only_check)
 
+    def unblock_all(self):
+        for key, lifeline in self.lifelines.items():
+            lifeline.unblock()
+        
     def keep_raw_log(self, line = "", arr = None):
         self.raw_log.append(line + (list2cmdline(arr) if arr else ""))
         
