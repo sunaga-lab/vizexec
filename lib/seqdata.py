@@ -170,7 +170,7 @@ class Lifeline:
         return self.__current_ypos
 
     def set_current_ypos_least(self, ypos):
-        self.__current_ypos = max(self.__current_ypos, ypos)
+        self.__current_ypos = max(self.get_current_ypos(), ypos)
         if self.seqdata.synchronized:
             self.seqdata.current_ypos = self.__current_ypos
 
@@ -554,10 +554,12 @@ class Lifeline:
     def draw_terminate(self, entity):
         self.draw_mark([0], entity.ypos, "Terminate", None)
 
-
     def put_info(self, infoline):
         last_entity = self.entity_list[-1]
         last_entity.add_info(infoline)
+
+
+
 
 class SequenceData:
     def __init__(self):
@@ -650,7 +652,7 @@ class SequenceData:
             if cmd[3] in self.open_receiving:
                 comm = self.open_receiving[cmd[3]]
                 del self.open_receiving[cmd[3]]
-                comm.recv_entity.shift_ypos(lifeline.get_current_ypos() + 40)
+                # comm.recv_entity.shift_ypos(lifeline.get_current_ypos() + 40)
             else:
                 comm = Communication()
                 self.open_sending[cmd[3]] = comm
