@@ -561,6 +561,47 @@ class Lifeline:
 
 
 
+    def add_data_line(self, cmd):
+        if cmd[0] == 'CAL' and len(cmd) >= 4:
+            self.put_call(cmd[3])
+        elif cmd[0] == 'PHS' and len(cmd) >= 4:
+            self.put_phase(cmd[3])
+        elif cmd[0] == 'RET' and len(cmd) >= 3:
+            self.put_return()
+        elif cmd[0] == 'TNM' and len(cmd) >= 3:
+            self.put_thread_name(cmd[2])
+        elif cmd[0] == 'SND' and len(cmd) >= 4:
+            if cmd[3] in self.seqdata.open_receiving:
+                comm = self.seqdata.open_receiving[cmd[3]]
+                del self.seqdata.open_receiving[cmd[3]]
+                # comm.recv_entity.shift_ypos(self.get_current_ypos() + 40)
+            else:
+                comm = Communication()
+                self.seqdata.open_sending[cmd[3]] = comm
+            comm.send_entity = self.put_send(comm)
+        elif cmd[0] == 'RCV' and len(cmd) >= 4:
+            if cmd[3] in self.seqdata.open_sending:
+                comm = self.seqdata.open_sending[cmd[3]]
+                del self.seqdata.open_sending[cmd[3]]
+            else:
+                comm = Communication()
+                self.seqdata.open_receiving[cmd[3]] = comm
+            comm.recv_entity = self.put_recv(comm)
+        elif cmd[0] == 'EVT' and len(cmd) >= 4:
+            self.put_event(cmd[3])
+
+        elif cmd[0] == 'INF' and len(cmd) >= 3:
+            self.put_info(cmd[2])
+
+        elif cmd[0] == 'TRM' and len(cmd) >= 1:
+            self.put_terminate()
+            self.used_lane.remove(self.lane)
+        else:
+            print "Invalid command: ", cmd[0]
+
+
+
+
 class SequenceData:
     def __init__(self):
         self.lifelines = {}
@@ -619,7 +660,7 @@ class SequenceData:
             ll.set_current_ypos_least(now_ypos)
         self.current_ypos = now_ypos
         print "Sync:", self.current_ypos    
-            
+
     def add_data_line(self, line, th_grp = "d"):
         cmd = shlex.split(line.strip())
         if not cmd:
@@ -640,43 +681,7 @@ class SequenceData:
             self.keep_raw_log(line = line)
             return
 
-        if cmd[0] == 'CAL' and len(cmd) >= 4:
-            lifeline.put_call(cmd[3])
-        elif cmd[0] == 'PHS' and len(cmd) >= 4:
-            lifeline.put_phase(cmd[3])
-        elif cmd[0] == 'RET' and len(cmd) >= 3:
-            lifeline.put_return()
-        elif cmd[0] == 'TNM' and len(cmd) >= 3:
-            lifeline.put_thread_name(cmd[2])
-        elif cmd[0] == 'SND' and len(cmd) >= 4:
-            if cmd[3] in self.open_receiving:
-                comm = self.open_receiving[cmd[3]]
-                del self.open_receiving[cmd[3]]
-                # comm.recv_entity.shift_ypos(lifeline.get_current_ypos() + 40)
-            else:
-                comm = Communication()
-                self.open_sending[cmd[3]] = comm
-            comm.send_entity = lifeline.put_send(comm)
-        elif cmd[0] == 'RCV' and len(cmd) >= 4:
-            if cmd[3] in self.open_sending:
-                comm = self.open_sending[cmd[3]]
-                del self.open_sending[cmd[3]]
-            else:
-                comm = Communication()
-                self.open_receiving[cmd[3]] = comm
-            comm.recv_entity = lifeline.put_recv(comm)
-        elif cmd[0] == 'EVT' and len(cmd) >= 4:
-            lifeline.put_event(cmd[3])
-
-        elif cmd[0] == 'INF' and len(cmd) >= 3:
-            lifeline.put_info(cmd[2])
-
-        elif cmd[0] == 'TRM' and len(cmd) >= 1:
-            lifeline.put_terminate()
-            self.used_lane.remove(lifeline.lane)
-        else:
-            print "Invalid command: ", cmd[0]
-
+        lifeline.add_data_line(cmd)
         self.keep_raw_log(arr = cmd)
 
     def terminated_lifeline_group(self, group):
